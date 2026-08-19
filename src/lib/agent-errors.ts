@@ -11,6 +11,12 @@
 /** Falha que condena a rodada inteira. Abortar é a única resposta correta. */
 export class FatalRunError extends Error {
   readonly detail: string;
+  /**
+   * Resultados já obtidos quando a rodada foi condenada.
+   * Preenchido pelo runner: uma falha de conta na questão 18 não pode apagar as 17
+   * respostas que já custaram tempo e crédito.
+   */
+  partialOutcomes?: unknown[];
 
   constructor(detail: string) {
     super(`Falha irrecuperável da conta do provider: ${detail}`);

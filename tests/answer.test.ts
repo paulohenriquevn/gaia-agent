@@ -9,7 +9,7 @@ describe("extractFinalAnswer", () => {
   });
 
   it("aceita o marcador sem dois-pontos e com caixa diferente", () => {
-    assert.equal(extractFinalAnswer("blah\nfinal answer  Saint Petersburg"), "Saint Petersburg");
+    assert.equal(extractFinalAnswer("blah\nfinal answer  Buenos Aires"), "Buenos Aires");
   });
 
   it("usa a ultima linha nao vazia quando o marcador esta ausente", () => {
@@ -28,20 +28,20 @@ describe("extractFinalAnswer", () => {
 
 describe("normalizeAnswer", () => {
   it("remove enfase markdown", () => {
-    assert.equal(normalizeAnswer("**Rd5**"), "Rd5");
+    assert.equal(normalizeAnswer("**Nf6**"), "Nf6");
   });
 
   it("remove ponto final", () => {
-    assert.equal(normalizeAnswer("Saint Petersburg."), "Saint Petersburg");
+    assert.equal(normalizeAnswer("Buenos Aires."), "Buenos Aires");
   });
 
   it("remove aspas envolventes retas e tipograficas", () => {
-    assert.equal(normalizeAnswer('"Extremely"'), "Extremely");
-    assert.equal(normalizeAnswer("“Extremely”"), "Extremely");
+    assert.equal(normalizeAnswer('"Absolutely"'), "Absolutely");
+    assert.equal(normalizeAnswer("“Absolutely”"), "Absolutely");
   });
 
   it("preserva apostrofo interno", () => {
-    assert.equal(normalizeAnswer("Teal'c"), "Teal'c");
+    assert.equal(normalizeAnswer("O'Brien"), "O'Brien");
   });
 
   it("padroniza espacamento em listas separadas por virgula", () => {
@@ -61,7 +61,7 @@ describe("normalizeAnswer", () => {
 describe("extractWorkingAnswer", () => {
   it("recupera o rascunho escrito antes da pesquisa", async () => {
     const { extractWorkingAnswer } = await import("../src/lib/answer.ts");
-    assert.equal(extractWorkingAnswer("WORKING ANSWER: Saint Petersburg\nagora vou pesquisar"), "Saint Petersburg");
+    assert.equal(extractWorkingAnswer("WORKING ANSWER: Buenos Aires\nagora vou pesquisar"), "Buenos Aires");
   });
 
   it("trata 'unknown' como ausencia de resposta", async () => {
@@ -77,16 +77,16 @@ describe("extractWorkingAnswer", () => {
 
 describe("extractFinalAnswer com rascunho", () => {
   it("prefere FINAL ANSWER ao rascunho", () => {
-    const raw = "WORKING ANSWER: Moscow\n...\nFINAL ANSWER: Saint Petersburg";
-    assert.equal(extractFinalAnswer(raw), "Saint Petersburg");
+    const raw = "WORKING ANSWER: Lisbon\n...\nFINAL ANSWER: Buenos Aires";
+    assert.equal(extractFinalAnswer(raw), "Buenos Aires");
   });
 
   it("cai para o rascunho quando o run foi interrompido antes de concluir", () => {
-    const raw = "WORKING ANSWER: Saint Petersburg\nsearching wikipedia...\nsearching again...";
-    assert.equal(extractFinalAnswer(raw), "Saint Petersburg");
+    const raw = "WORKING ANSWER: Buenos Aires\nsearching wikipedia...\nsearching again...";
+    assert.equal(extractFinalAnswer(raw), "Buenos Aires");
   });
 
   it("ignora rascunho 'unknown' e usa a ultima linha", () => {
-    assert.equal(extractFinalAnswer("WORKING ANSWER: unknown\nRd5"), "Rd5");
+    assert.equal(extractFinalAnswer("WORKING ANSWER: unknown\nNf6"), "Nf6");
   });
 });

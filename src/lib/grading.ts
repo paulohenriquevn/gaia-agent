@@ -4,8 +4,13 @@
  * Serve para medir o agente antes de submeter — cada submissão entra no leaderboard
  * público do curso, e descobrir o score só depois de publicá-lo é caro.
  *
- * O gabarito nunca entra no caminho da resposta: é lido aqui, depois que as respostas
- * já foram geradas e gravadas. O agente não o vê.
+ * O gabarito nunca entra no caminho da resposta: é lido aqui, depois que as respostas já
+ * foram geradas e gravadas, e nada deste módulo é importado pelo agente.
+ *
+ * Manter isso verdadeiro exige disciplina no resto do código: valores do gabarito não
+ * podem virar exemplo de prompt nem fixture de teste. Uma revisão encontrou
+ * "Saint Petersburg" — resposta de uma das questões — dentro do prompt de sistema,
+ * servida ao modelo em toda pergunta.
  */
 
 export interface GradedItem {

@@ -15,7 +15,14 @@ import { resilient } from "../lib/resilient-tool.ts";
 const API_ENDPOINT = "https://en.wikipedia.org/w/api.php";
 const USER_AGENT = "GaiaFinalAgent/0.1 (HF Agents Course Unit 4)";
 
-async function callApi(params: Record<string, string>): Promise<any> {
+/** Envelope da API da Wikipedia, com apenas os campos que este módulo consome. */
+interface WikipediaApiResponse {
+  query?: { search?: Array<{ title: string; snippet: string }> };
+  parse?: { text?: Record<string, string> };
+  error?: { info?: string; code?: string };
+}
+
+async function callApi(params: Record<string, string>): Promise<WikipediaApiResponse> {
   const url = new URL(API_ENDPOINT);
   for (const [key, value] of Object.entries({ ...params, format: "json", origin: "*" })) {
     url.searchParams.set(key, value);
@@ -27,7 +34,7 @@ async function callApi(params: Record<string, string>): Promise<any> {
       if (!response.ok) {
         throw new Error(`API da Wikipedia respondeu ${response.status}`);
       }
-      return response.json();
+      return (await response.json()) as WikipediaApiResponse;
     },
     {
       attempts: 3,
@@ -51,8 +58,8 @@ export async function searchWikipedia(query: string, limit: number): Promise<Wik
     srlimit: String(limit),
   });
 
-  const results = data?.query?.search ?? [];
-  return results.map((result: { title: string; snippet: string }) => ({
+  const results = data.query?.search ?? [];
+  return results.map((result) => ({
     title: result.title,
     snippet: stripHtmlTags(result.snippet),
   }));
@@ -62,10 +69,10 @@ export async function searchWikipedia(query: string, limit: number): Promise<Wik
 export async function fetchWikipediaPage(title: string): Promise<string> {
   const data = await callApi({ action: "parse", page: title, prop: "text", redirects: "1" });
 
-  if (data?.error) {
+  if (data.error) {
     throw new Error(`Wikipedia não tem o artigo "${title}": ${data.error.info ?? data.error.code}`);
   }
-  const html = data?.parse?.text?.["*"];
+  const html = data.parse?.text?.["*"];
   if (typeof html !== "string") {
     throw new Error(`Resposta inesperada da Wikipedia para "${title}".`);
   }
@@ -100,7 +107,7 @@ export const wikipediaPageTool = Tool.create({
   description:
     "Lê um artigo da Wikipedia em inglês pelo título exato, devolvendo o texto completo com as tabelas preservadas em formato pipe. Use depois de wikipedia_search, ou direto quando souber o título.",
   inputSchema: z.object({
-    title: z.string().min(1).describe("Título exato do artigo, ex: 'Mercedes Sosa'"),
+    title: z.string().min(1).describe("Título exato do artigo, ex: 'Amazon River'"),
     max_chars: z.number().int().min(1000).max(150000).default(60000),
   }),
   handler: resilient(

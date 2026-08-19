@@ -4,7 +4,7 @@ import { grade, isCorrect, normalizeForGrading, parseGroundTruthJsonl } from "..
 
 describe("normalizeForGrading", () => {
   it("ignora caixa e ponto final", () => {
-    assert.equal(normalizeForGrading("Saint Petersburg."), "saint petersburg");
+    assert.equal(normalizeForGrading("Buenos Aires."), "buenos aires");
   });
   it("padroniza espacamento de lista", () => {
     assert.equal(normalizeForGrading("b ,e"), "b, e");
@@ -19,7 +19,7 @@ describe("isCorrect", () => {
     assert.equal(isCorrect("", ""), false);
   });
   it("rejeita resposta que apenas contem o valor", () => {
-    assert.equal(isCorrect("The answer is Wojciech", "Wojciech"), false);
+    assert.equal(isCorrect("The answer is Ferdinand", "Ferdinand"), false);
   });
   it("aceita lista com espacamento diferente", () => {
     assert.equal(isCorrect("b,e", "b, e"), true);
@@ -27,7 +27,7 @@ describe("isCorrect", () => {
 });
 
 describe("grade", () => {
-  const truth = new Map([["t1", "3"], ["t2", "right"], ["t3", "Rd5"]]);
+  const truth = new Map([["t1", "3"], ["t2", "right"], ["t3", "Nf6"]]);
 
   it("conta acertos e calcula o percentual", () => {
     const r = grade(new Map([["t1", "3"], ["t2", "wrong"], ["t3", ""]]), truth);

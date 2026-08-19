@@ -11,33 +11,94 @@ export interface PythonResult {
   timedOut: boolean;
 }
 
+/** Teto de saída acumulada antes de o processo ser encerrado. */
+const MAX_OUTPUT_BYTES = 256 * 1024;
+
 /**
- * Executa código Python num subprocesso isolado com timeout rígido.
- * O timeout não é opcional: código do benchmark pode conter laços longos de propósito.
+ * Ambiente mínimo do subprocesso.
+ *
+ * O código executado aqui é escrito pelo modelo a partir de páginas que ele leu na web,
+ * ou seja, entrada não confiável. Herdar `process.env` entregaria as credenciais do
+ * provider a esse código: um `print(os.environ)` bastaria para exfiltrar a chave. Só
+ * passa o que o interpretador precisa para funcionar.
+ */
+function minimalEnv(): NodeJS.ProcessEnv {
+  return {
+    PATH: process.env.PATH ?? "/usr/local/bin:/usr/bin:/bin",
+    HOME: process.env.HOME ?? "/tmp",
+    LANG: process.env.LANG ?? "C.UTF-8",
+    PYTHONIOENCODING: "utf-8",
+    // Impede que o interpretador leia código do diretório de trabalho.
+    PYTHONDONTWRITEBYTECODE: "1",
+  };
+}
+
+/**
+ * Executa código Python num subprocesso isolado, com ambiente mínimo, teto de saída e
+ * prazo rígido.
+ *
+ * O prazo encerra o GRUPO de processos, não só o filho: um `subprocess.Popen` disparado
+ * pelo código sobrevive ao kill do pai e mantém o stdio aberto, deixando a promessa
+ * pendente para sempre.
  */
 export function runPython(code: string, timeoutMs: number): Promise<PythonResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn("python3", ["-c", code], { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn("python3", ["-I", "-c", code], {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: minimalEnv(),
+      // Novo grupo de processos, para que o kill alcance os netos.
+      detached: true,
+    });
 
     let stdout = "";
     let stderr = "";
     let timedOut = false;
+    let settled = false;
+
+    const killGroup = (signal: NodeJS.Signals) => {
+      try {
+        // O negativo do pid atinge o grupo inteiro.
+        if (child.pid !== undefined) process.kill(-child.pid, signal);
+      } catch {
+        child.kill(signal);
+      }
+    };
+
+    const finish = (exitCode: number | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ exitCode, stdout, stderr, timedOut });
+    };
 
     const timer = setTimeout(() => {
       timedOut = true;
-      child.kill("SIGKILL");
+      killGroup("SIGKILL");
+      // O `close` depende do stdio herdado pelos netos e pode nunca chegar; a promessa
+      // resolve por conta própria logo após o kill.
+      setTimeout(() => finish(null), 500);
     }, timeoutMs);
 
-    child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString()));
-    child.stderr.on("data", (chunk: Buffer) => (stderr += chunk.toString()));
+    const capture = (target: "out" | "err") => (chunk: Buffer) => {
+      const text = chunk.toString();
+      if (target === "out") stdout += text;
+      else stderr += text;
+      if (stdout.length + stderr.length > MAX_OUTPUT_BYTES) {
+        stderr += `\n[saída excedeu ${MAX_OUTPUT_BYTES} bytes; processo encerrado]`;
+        killGroup("SIGKILL");
+        setTimeout(() => finish(null), 100);
+      }
+    };
+
+    child.stdout.on("data", capture("out"));
+    child.stderr.on("data", capture("err"));
     child.on("error", (error) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
       reject(new Error(`Falha ao iniciar python3: ${error.message}`));
     });
-    child.on("close", (exitCode) => {
-      clearTimeout(timer);
-      resolve({ exitCode, stdout, stderr, timedOut });
-    });
+    child.on("close", finish);
   });
 }
 

@@ -1,91 +1,20 @@
-import { Agent } from "@theokit/sdk";
+import { Agent, type CustomTool } from "@theokit/sdk";
+import type { WebSearchCallback } from "@theokit/sdk-tools";
+import { DIRECT_ANSWER_PROMPT, SYSTEM_PROMPT } from "./prompts.ts";
+import { buildTools } from "./tools/registry.ts";
+import { failureReason, harvestStream, rawOutputOf } from "./lib/run-outcome.ts";
 import { ScoringApi, type GaiaQuestion } from "./scoring-api.ts";
 import { extractFinalAnswer } from "./lib/answer.ts";
 import { FatalRunError, classifyRunFailure } from "./lib/agent-errors.ts";
-import { fetchPageTool, createSearchTool } from "./tools/web.ts";
 import { resolveSearchBackend } from "./tools/search-backend.ts";
-import { runPythonTool } from "./tools/python.ts";
-import { youtubeTranscriptTool } from "./tools/youtube.ts";
-import { wikipediaPageTool, wikipediaSearchTool, searchWikipedia } from "./tools/wikipedia.ts";
+import { searchWikipedia } from "./tools/wikipedia.ts";
 import { checkSources, healthGuidance, type SourceHealth } from "./lib/health.ts";
-import { createReadTaskFileTool } from "./tools/task-files.ts";
-import {
-  createDescribeImageTool,
-  createTranscribeAudioTool,
-  type PerceptionConfig,
-} from "./tools/perception.ts";
 
 /**
  * Regras de formatação do GAIA. O benchmark pontua por igualdade exata de string,
  * então o formato da resposta pesa tanto quanto a pesquisa que a produziu.
  */
-export const SYSTEM_PROMPT = `You are a precise research assistant answering ONE question from the GAIA benchmark.
 
-Your answer is graded by EXACT STRING MATCH against a short reference answer.
-There are two ways to score zero: giving a wrong value, and giving no value at all.
-An empty answer is always wrong. An informed guess is sometimes right.
-
-## Step budget
-
-You have roughly 25 tool calls. Most questions need fewer than 10.
-Spend them READING sources, not rephrasing searches.
-
-## Method
-
-0. FIRST, before touching any tool, write one line:
-   WORKING ANSWER: <your best answer from your own knowledge, or "unknown">
-   You very likely know more than you think. This line costs nothing and guarantees you
-   never finish empty-handed. It is a draft, not a commitment.
-
-1. Name the single value the question asks for. Note its type (number, name, city,
-   list) and how it must be formatted.
-
-2. If the question mentions an attached file, call the matching tool with the task_id
-   you were given: read_task_file (text, code, spreadsheets), describe_image (images),
-   transcribe_audio (audio). If the attachment cannot be retrieved, do not keep trying
-   it — move on and answer from the question text and your own knowledge.
-
-3. Research to CONFIRM OR CORRECT your working answer — not to discover it from zero.
-   Prefer a source you actually opened over recall, but treat research as verification.
-   - Searching is not reading. A list of snippets is a map, not evidence: pick the most
-     promising result and OPEN it with wikipedia_page or fetch_page.
-   - At most 2 searches per topic. If the second brings nothing usable, change strategy
-     instead of wording: a different entity, a broader parent topic, a page that would
-     cite the fact, or a different tool.
-   - Never issue a query that is a minor rewording of one you already tried. Repeating
-     yourself burns the budget and returns the same results.
-   - If a tool reports a failure, do not call it again with the same input.
-
-4. Use run_python for arithmetic, counting, sorting, date math, or parsing. Do not do
-   multi-step math in your head.
-
-5. Stop researching the moment you have the value. Extra confirmation rarely changes a
-   correct answer and often exhausts the budget.
-
-## When research does not converge
-
-Fall back to your WORKING ANSWER and submit it. Do not keep searching.
-
-Research that neither confirms nor refutes it has told you nothing, so the working
-answer remains your best estimate. State it in the required format with no hedging, no
-caveats and no mention of uncertainty. Half-verified beats blank, because blank is
-guaranteed to be wrong — and your own knowledge is often right.
-
-Two searches that return nothing usable is already the signal to stop and answer.
-
-## Answer format — these rules are absolute
-
-- Reply with ONLY the value asked for. No explanation, no units, no restating the question.
-- Numbers: plain digits. No thousands separators, no currency symbols, no units, unless
-  the question explicitly asks for a unit. Write 89706.00 as 89706.00 if cents are asked for.
-- Strings: no leading article. No abbreviations: write "Saint Petersburg", not "St. Petersburg".
-- Lists: comma-separated, in the order the question requests, each element following the
-  rules above. Alphabetize only when asked.
-- Names: give exactly the part requested. "First name only" means one word.
-- Do not add quotation marks, bold, code formatting, or a trailing period.
-
-End your reply with a single line in exactly this form:
-FINAL ANSWER: <the answer>`;
 
 export interface AgentConfig {
   modelId: string;
@@ -105,11 +34,12 @@ export interface AgentConfig {
   maxIterations: number;
   /** Fontes disponíveis nesta rodada. Ausente ⇒ todas as ferramentas são registradas. */
   health?: SourceHealth;
+  /** Backend de busca, injetado — o agente não escolhe provedor nem lê o ambiente. */
+  search: WebSearchCallback;
 }
 
 /** Sonda as fontes externas uma vez, para a rodada inteira. */
-export function probeSources() {
-  const backend = resolveSearchBackend();
+export function probeSources(backend = resolveSearchBackend()) {
   return checkSources({
     // A sonda precisa de resultado, não só de resposta: um backend que devolve lista
     // vazia para toda consulta é tão inútil quanto um que falha.
@@ -221,6 +151,26 @@ async function attempt(
   }
 }
 
+/** Cria o agente de uma tentativa. Isolado para que a conversa não carregue a montagem. */
+async function createQuestionAgent(config: AgentConfig, modelId: string, tools: CustomTool[]) {
+  // O SDK resolve `apiKey` deste campo ou de THEOKIT_API_KEY — nunca das provider keys.
+  // Passar a chave do OpenRouter aqui é o que dispensa a THEOKIT_API_KEY: com
+  // OPENROUTER_API_KEY no ambiente o SDK escolhe o runtime local, que fala com o provider.
+  return Agent.create({
+    apiKey: config.openRouterApiKey,
+    model: { id: modelId },
+    systemPrompt: SYSTEM_PROMPT + (config.health ? healthGuidance(config.health) : ""),
+    local: { cwd: config.cwd, settingSources: [] },
+    tools,
+  });
+}
+
+/** Nota que informa ao agente como buscar o anexo da questão. */
+function attachmentNote(question: GaiaQuestion): string {
+  if (!question.file_name) return "";
+  return `\n\nThis question has an attached file named "${question.file_name}". Its task_id is "${question.task_id}" — pass that task_id to the file tools.`;
+}
+
 /** Uma tentativa de resposta com um modelo específico. */
 async function runWithModel(
   question: GaiaQuestion,
@@ -229,80 +179,41 @@ async function runWithModel(
   config: AgentConfig,
   modelId: string,
 ): Promise<QuestionAnswer> {
-  const perception: PerceptionConfig = {
-    apiKey: config.openRouterApiKey,
-    visionModel: config.visionModel,
-    audioModel: config.audioModel,
-  };
-
-  // Disposal explícito em vez de `await using`: explicit resource management só
-  // chega no Node 24, e o runtime aqui é o 22 LTS. Vazar o runtime por questão
-  // esgotaria os recursos no meio da rodada.
-  const agent = await Agent.create({
-    // O SDK resolve `apiKey` a partir deste campo ou de THEOKIT_API_KEY — nunca das
-    // provider keys. Passar a chave do OpenRouter aqui é o que dispensa a THEOKIT_API_KEY:
-    // com OPENROUTER_API_KEY no ambiente o SDK escolhe o runtime local real, que fala
-    // direto com o provider.
-    apiKey: config.openRouterApiKey,
-    model: { id: modelId },
-    systemPrompt: SYSTEM_PROMPT + (config.health ? healthGuidance(config.health) : ""),
-    local: { cwd: config.cwd, settingSources: [] },
-    // Ferramenta de fonte comprovadamente fora não é registrada: oferecê-la só
-    // convida o agente a gastar iterações numa porta fechada.
-    tools: [
-      ...(config.health?.wikipedia === false ? [] : [wikipediaSearchTool, wikipediaPageTool]),
-      ...(config.health?.webSearch === false ? [] : [createSearchTool(resolveSearchBackend().search)]),
-      fetchPageTool,
-      runPythonTool,
-      youtubeTranscriptTool,
-      createReadTaskFileTool(api, fileIndex),
-      createDescribeImageTool(api, fileIndex, perception),
-      createTranscribeAudioTool(api, fileIndex, perception),
-    ],
+  const tools = buildTools({
+    api,
+    fileIndex,
+    perception: {
+      apiKey: config.openRouterApiKey,
+      visionModel: config.visionModel,
+      audioModel: config.audioModel,
+    },
+    search: config.search,
+    health: config.health,
   });
 
-  try {
-    const attachmentNote = question.file_name
-      ? `\n\nThis question has an attached file named "${question.file_name}". Its task_id is "${question.task_id}" — pass that task_id to the file tools.`
-      : "";
+  // Disposal explícito em vez de `await using`: explicit resource management só chega no
+  // Node 24, e o runtime aqui é o 22 LTS. Vazar o runtime por questão esgotaria os
+  // recursos no meio da rodada.
+  const agent = await createQuestionAgent(config, modelId, tools);
 
-    // O teto padrão do loop é 8 iterações, e uma questão do GAIA gasta isso só
-    // localizando a fonte: ao estourar, o run é truncado e termina sem resposta.
-    // Era essa a causa por trás dos erros "sem detalhe" nas questões de pesquisa.
-    const run = await agent.send(`${question.question}${attachmentNote}`, {
+  try {
+    // O teto padrão do loop é 8 iterações, e uma questão do GAIA gasta isso só localizando
+    // a fonte: ao estourar, o run é truncado e termina sem resposta.
+    const run = await agent.send(`${question.question}${attachmentNote(question)}`, {
       maxIterations: config.maxIterations,
     });
 
-    // O stream é consumido em vez de só aguardar o run: quando o provider recusa a
-    // chamada, `result.result` vem vazio e a razão só aparece no evento de status.
-    // Foi essa mensagem perdida que transformou "crédito acabou" em "sem detalhe".
-    const assistantTexts: string[] = [];
-    let failureDetail: string | undefined;
-
-    for await (const event of run.stream()) {
-      if (event.type === "assistant") {
-        for (const block of event.message.content) {
-          if (block.type === "text") assistantTexts.push(block.text);
-        }
-      } else if (event.type === "status" && String(event.status).toUpperCase() === "ERROR") {
-        failureDetail = event.message ?? failureDetail;
-      }
-    }
-
+    const harvest = await harvestStream(run);
     const result = await run.wait();
-
-    if (result.status === "error" && !result.stoppedAtIterationLimit) {
-      throw classifyRunFailure(question.task_id, failureDetail ?? "sem detalhe do provider");
-    }
-
-    // Um run truncado no teto de iterações ainda pode ter dito a resposta antes de
-    // parar; o texto colhido do stream é aproveitado em vez de descartado.
-    const rawOutput = result.result ?? assistantTexts.join("\n");
-    const answer = extractFinalAnswer(rawOutput);
     const truncated = result.stoppedAtIterationLimit === true;
 
+    if (result.status === "error" && !truncated) {
+      throw classifyRunFailure(question.task_id, failureReason(result, harvest.failureDetail));
+    }
+
+    const rawOutput = rawOutputOf(result, harvest);
     return {
-      answer,
+      answer: extractFinalAnswer(rawOutput),
       rawOutput,
       durationMs: result.durationMs ?? 0,
       modelUsed: modelId,
@@ -313,14 +224,6 @@ async function runWithModel(
   }
 }
 
-
-const DIRECT_ANSWER_PROMPT = `Answer this question from your own knowledge. You have no tools and no way to look anything up, so give your single best answer.
-
-Reply with ONLY the value asked for — no explanation, no hedging, no mention of uncertainty. If you are unsure, still commit to your most likely answer: a guess can be right, and no answer never is.
-
-End with a single line: FINAL ANSWER: <the answer>
-
-Question: `;
 
 /**
  * Responde sem ferramenta alguma, num agente novo.
@@ -349,8 +252,18 @@ async function answerFromKnowledge(
     const run = await agent.send(`${DIRECT_ANSWER_PROMPT}${question.question}`, {
       maxIterations: 1,
     });
+
+    const harvest = await harvestStream(run);
     const result = await run.wait();
-    const rawOutput = result.result ?? "";
+
+    // Checar o status aqui não é redundante: sem isto uma falha de conta neste caminho
+    // — percorrido por toda questão cuja pesquisa voltou vazia — vira resposta vazia e
+    // a rodada segue queimando tentativas que não têm como dar certo.
+    if (result.status === "error") {
+      throw classifyRunFailure(question.task_id, failureReason(result, harvest.failureDetail));
+    }
+
+    const rawOutput = rawOutputOf(result, harvest);
     return {
       answer: extractFinalAnswer(rawOutput),
       rawOutput,

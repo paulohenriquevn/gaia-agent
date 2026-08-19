@@ -8,7 +8,8 @@
  * seguintes preenchendo apenas o que ficou vazio. Isso combina rodadas por uma regra
  * objetiva, sem consultar o gabarito para escolher.
  *
- * O gabarito não é versionado e não é lido pelo agente. Formato JSONL do dataset GAIA:
+ * O gabarito não é versionado e não entra no caminho da resposta: é lido aqui, depois que
+ * as respostas já foram geradas e gravadas. Formato JSONL do dataset GAIA:
  *   {"task_id": "...", "Final answer": "..."}
  */
 import { readFileSync } from "node:fs";

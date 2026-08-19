@@ -11,3 +11,5 @@ eval*.log
 smoke*.log
 diag*.log
 diag.ts
+knowledge-base
+.review-runs

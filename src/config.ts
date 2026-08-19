@@ -1,4 +1,5 @@
 import type { AgentConfig } from "./agent.ts";
+import { resolveSearchBackend } from "./tools/search-backend.ts";
 
 /** Configuração ausente ou inválida. Falha na fronteira, antes de qualquer trabalho. */
 export class ConfigError extends Error {
@@ -76,6 +77,9 @@ export function loadConfig(): AppConfig {
     cwd: optional("AGENT_CWD", process.cwd()),
     username: optional("HF_USERNAME", spaceId ? usernameFromSpaceId(spaceId) : ""),
     agentCodeUrl: optional("AGENT_CODE_URL", spaceId ? agentCodeUrlFromSpaceId(spaceId) : ""),
+    // O backend de busca é resolvido AQUI, na fronteira de configuração, e injetado.
+    // Nem o agente nem as ferramentas leem o ambiente para decidir provedor.
+    search: resolveSearchBackend().search,
     maxIterations: positiveInt("MAX_ITERATIONS", 30),
     concurrency: positiveInt("CONCURRENCY", 3),
   };

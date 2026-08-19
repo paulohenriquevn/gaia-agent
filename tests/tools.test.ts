@@ -8,10 +8,10 @@ import { parseDuckDuckGoHtml, unwrapDuckDuckGoRedirect } from "../src/tools/web.
 
 describe("htmlToText", () => {
   it("converte tabela em pipe-table preservando as celulas", () => {
-    const html = "<table><tr><th>Year</th><th>Album</th></tr><tr><td>2005</td><td>Corazon Libre</td></tr></table>";
+    const html = "<table><tr><th>Year</th><th>Title</th></tr><tr><td>1999</td><td>Example Record</td></tr></table>";
     const text = htmlToText(html);
-    assert.match(text, /\| Year \| Album \|/);
-    assert.match(text, /\| 2005 \| Corazon Libre \|/);
+    assert.match(text, /\| Year \| Title \|/);
+    assert.match(text, /\| 1999 \| Example Record \|/);
   });
 
   it("descarta script e style", () => {
@@ -39,15 +39,15 @@ describe("truncate", () => {
 
 describe("extractVideoId", () => {
   it("extrai de URL watch", () => {
-    assert.equal(extractVideoId("https://www.youtube.com/watch?v=L1vXCYZAYYM"), "L1vXCYZAYYM");
+    assert.equal(extractVideoId("https://www.youtube.com/watch?v=dQw4w9WgXcQ"), "dQw4w9WgXcQ");
   });
 
   it("extrai de youtu.be", () => {
-    assert.equal(extractVideoId("https://youtu.be/1htKBjuUWec"), "1htKBjuUWec");
+    assert.equal(extractVideoId("https://youtu.be/aBcDeFgHiJk"), "aBcDeFgHiJk");
   });
 
   it("aceita o id cru", () => {
-    assert.equal(extractVideoId("L1vXCYZAYYM"), "L1vXCYZAYYM");
+    assert.equal(extractVideoId("dQw4w9WgXcQ"), "dQw4w9WgXcQ");
   });
 
   it("falha alto para entrada sem id", () => {
@@ -105,8 +105,8 @@ describe("decodeTaskFile", () => {
 
 describe("unwrapDuckDuckGoRedirect", () => {
   it("desembrulha o redirect uddg", () => {
-    const href = "//duckduckgo.com/l/?uddg=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FMercedes_Sosa&rut=x";
-    assert.equal(unwrapDuckDuckGoRedirect(href), "https://en.wikipedia.org/wiki/Mercedes_Sosa");
+    const href = "//duckduckgo.com/l/?uddg=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FExample_Page&rut=x";
+    assert.equal(unwrapDuckDuckGoRedirect(href), "https://en.wikipedia.org/wiki/Example_Page");
   });
 
   it("devolve null para href vazio", () => {

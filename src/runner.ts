@@ -2,6 +2,12 @@ import { answerQuestion, buildFileIndex, type AgentConfig } from "./agent.ts";
 import { FatalRunError } from "./lib/agent-errors.ts";
 import type { GaiaQuestion, ScoringApi, SubmittedAnswer } from "./scoring-api.ts";
 
+export type ProgressCallback = (
+  outcome: QuestionOutcome,
+  completed: number,
+  total: number,
+) => void;
+
 export interface QuestionOutcome {
   task_id: string;
   question: string;
@@ -26,61 +32,89 @@ export async function answerAll(
   api: ScoringApi,
   config: AgentConfig,
   concurrency: number,
-  onProgress?: (outcome: QuestionOutcome, completed: number, total: number) => void,
+  onProgress?: ProgressCallback,
 ): Promise<QuestionOutcome[]> {
   const fileIndex = buildFileIndex(questions);
-  const outcomes = new Array<QuestionOutcome>(questions.length);
-  let nextIndex = 0;
-  let completed = 0;
-
-  let fatal: FatalRunError | undefined;
-
-  async function worker(): Promise<void> {
-    while (true) {
-      if (fatal !== undefined) return;
-      const index = nextIndex++;
-      if (index >= questions.length) return;
-
-      const question = questions[index];
-      const startedAt = Date.now();
-      try {
-        const result = await answerQuestion(question, api, fileIndex, config);
-        outcomes[index] = {
-          task_id: question.task_id,
-          question: question.question,
-          answer: result.answer,
-          rawOutput: result.rawOutput,
-          durationMs: result.durationMs,
-          modelUsed: result.modelUsed,
-        };
-      } catch (error) {
-        // Crédito esgotado ou chave inválida condena todas as questões restantes.
-        // Continuar produziria uma rodada inteira de respostas vazias e esconderia
-        // a causa atrás de vinte falhas idênticas.
-        if (error instanceof FatalRunError) {
-          fatal = error;
-          return;
-        }
-        outcomes[index] = {
-          task_id: question.task_id,
-          question: question.question,
-          answer: "",
-          rawOutput: "",
-          durationMs: Date.now() - startedAt,
-          error: error instanceof Error ? error.message : String(error),
-        };
-      }
-      onProgress?.(outcomes[index], ++completed, questions.length);
-    }
-  }
+  const state: RunState = {
+    outcomes: new Array<QuestionOutcome>(questions.length),
+    nextIndex: 0,
+    completed: 0,
+  };
 
   await Promise.all(
-    Array.from({ length: Math.min(concurrency, questions.length) }, () => worker()),
+    Array.from({ length: Math.min(concurrency, questions.length) }, () =>
+      worker(questions, api, config, fileIndex, state, onProgress),
+    ),
   );
 
-  if (fatal !== undefined) throw fatal;
+  if (state.fatal !== undefined) {
+    // A falha fatal é anexada aos resultados em vez de lançada: as questões já
+    // respondidas custaram tempo e crédito, e descartá-las era o pior desfecho
+    // possível — exatamente o que acontecia quando o crédito acabava no meio.
+    state.fatal.partialOutcomes = state.outcomes.filter(Boolean);
+  }
 
-  return outcomes;
+  return state.outcomes.filter(Boolean);
+}
+
+interface RunState {
+  outcomes: QuestionOutcome[];
+  nextIndex: number;
+  completed: number;
+  fatal?: FatalRunError;
+}
+
+/** Consome questões da fila até esgotá-la ou até uma falha condenar a rodada. */
+async function worker(
+  questions: GaiaQuestion[],
+  api: ScoringApi,
+  config: AgentConfig,
+  fileIndex: Map<string, string>,
+  state: RunState,
+  onProgress?: ProgressCallback,
+): Promise<void> {
+  while (state.fatal === undefined) {
+    const index = state.nextIndex++;
+    if (index >= questions.length) return;
+
+    state.outcomes[index] = await answerOne(questions[index], api, config, fileIndex, state);
+    if (state.fatal !== undefined) return;
+    onProgress?.(state.outcomes[index], ++state.completed, questions.length);
+  }
+}
+
+/** Responde uma questão, convertendo falha comum em resultado vazio e registrando a fatal. */
+async function answerOne(
+  question: GaiaQuestion,
+  api: ScoringApi,
+  config: AgentConfig,
+  fileIndex: Map<string, string>,
+  state: RunState,
+): Promise<QuestionOutcome> {
+  const startedAt = Date.now();
+  try {
+    const result = await answerQuestion(question, api, fileIndex, config);
+    return {
+      task_id: question.task_id,
+      question: question.question,
+      answer: result.answer,
+      rawOutput: result.rawOutput,
+      durationMs: result.durationMs,
+      modelUsed: result.modelUsed,
+    };
+  } catch (error) {
+    // Crédito esgotado ou chave inválida condena as questões restantes: nenhuma
+    // tentativa seguinte teria como dar certo.
+    if (error instanceof FatalRunError) state.fatal = error;
+    return {
+      task_id: question.task_id,
+      question: question.question,
+      answer: "",
+      rawOutput: "",
+      durationMs: Date.now() - startedAt,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
 }
 
 /**

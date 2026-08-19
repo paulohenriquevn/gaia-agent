@@ -1,10 +1,9 @@
 /**
  * Teste de fumaça: responde UMA questão do benchmark de ponta a ponta.
  *
- * Existe para separar "o agente está errado" de "o agente nem sobe" antes de
- * gastar uma rodada completa. Por padrão usa a questão da string invertida,
- * que exige raciocínio e nenhuma ferramenta — se ela falha, o problema é
- * infraestrutura, não pesquisa.
+ * Existe para separar "o agente está errado" de "o agente nem sobe" antes de gastar
+ * uma rodada completa. Sem argumento usa a primeira questão da lista; passe um
+ * prefixo de task_id para escolher outra.
  */
 import { loadConfig } from "../config.ts";
 import { ScoringApi } from "../scoring-api.ts";
@@ -18,7 +17,7 @@ const questions = await api.fetchQuestions();
 const requestedTaskId = process.argv[2];
 const question = requestedTaskId
   ? questions.find((candidate) => candidate.task_id.startsWith(requestedTaskId))
-  : questions.find((candidate) => candidate.question.startsWith(".rewsna"));
+  : questions[0];
 
 if (!question) {
   throw new Error(`Nenhuma questão encontrada para "${requestedTaskId ?? "(padrão)"}".`);

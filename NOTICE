@@ -1,0 +1,35 @@
+# Atribuições
+
+Este projeto é licenciado sob a MIT (ver LICENSE). As atribuições abaixo cobrem
+material de terceiros consultado ou incorporado durante o desenvolvimento.
+
+## Benchmark GAIA
+
+As perguntas respondidas por este agente vêm do benchmark GAIA, servidas pela API de
+avaliação do Hugging Face Agents Course. O dataset e seu gabarito pertencem aos autores
+do GAIA e NÃO são redistribuídos aqui: nenhum arquivo de gabarito é versionado, e o
+benchmark local (`npm run score`) lê o gabarito de um caminho externo informado em
+`GROUND_TRUTH_PATH`.
+
+Mialon et al. "GAIA: a benchmark for General AI Assistants" (2023).
+https://huggingface.co/datasets/gaia-benchmark/GAIA
+
+## Referências consultadas
+
+- Space `ZeroTimo/RobotPai` (@47d9afe) — agente LangGraph em Python, clonado localmente
+  como material de referência durante o desenvolvimento. Nenhum código, texto ou dado
+  seu foi incorporado a este projeto. O Space não declara licença.
+- Template de Space do Hugging Face — origem do `.gitattributes` e do esqueleto inicial
+  do repositório. https://huggingface.co/docs/hub/spaces
+
+## Conteúdo obtido em tempo de execução
+
+O agente lê páginas da Wikipédia em tempo de execução. Esse conteúdo é licenciado sob
+CC BY-SA 4.0 pelos seus autores e não é redistribuído por este repositório: nenhuma
+saída de execução é versionada.
+
+## Dependências
+
+Todas as dependências diretas e transitivas são MIT, ISC, BSD-2-Clause ou Apache-2.0.
+Nenhuma é copyleft. O pacote `xlsx` (SheetJS, Apache-2.0) é instalado a partir de
+`cdn.sheetjs.com` com hash de integridade fixado no lockfile.
