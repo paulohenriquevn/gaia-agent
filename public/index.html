@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GAIA Final Agent</title>
+<style>
+  :root { color-scheme: light dark; --bg:#fff; --fg:#1a1a1a; --muted:#666; --line:#e2e2e2; --accent:#ff9d00; --err:#c0392b; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0f0f11; --fg:#eaeaea; --muted:#9a9a9a; --line:#2a2a2e; } }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:2rem 1rem; background:var(--bg); color:var(--fg);
+         font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+  main { max-width: 900px; margin: 0 auto; }
+  h1 { font-size:1.5rem; margin:0 0 .25rem; }
+  p.sub { color:var(--muted); margin:0 0 1.5rem; }
+  .controls { display:flex; gap:.75rem; flex-wrap:wrap; align-items:center; margin-bottom:1.25rem; }
+  button { font:inherit; font-weight:600; padding:.6rem 1.1rem; border-radius:8px; border:1px solid var(--line);
+           background:var(--accent); color:#1a1a1a; cursor:pointer; }
+  button.secondary { background:transparent; color:var(--fg); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  #bar { height:6px; background:var(--line); border-radius:99px; overflow:hidden; margin-bottom:1rem; }
+  #fill { height:100%; width:0; background:var(--accent); transition:width .3s; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  td.q { color:var(--muted); }
+  td.a { font-weight:600; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .err { color:var(--err); }
+  #result { margin:1rem 0; padding:1rem; border:1px solid var(--line); border-radius:8px; display:none; }
+  #result.show { display:block; }
+  .score { font-size:2rem; font-weight:700; }
+  .wrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>GAIA Final Agent</h1>
+  <p class="sub">Hugging Face Agents Course — Unit 4. Agente construído com <code>@theokit/sdk</code>.</p>
+
+  <div class="controls">
+    <button id="run">Rodar (sem submeter)</button>
+    <button id="submit" class="secondary">Rodar e submeter</button>
+    <span id="status" class="sub"></span>
+  </div>
+
+  <div id="bar"><div id="fill"></div></div>
+  <div id="result"></div>
+
+  <div class="wrap">
+    <table>
+      <thead><tr><th style="width:38%">Questão</th><th>Resposta</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+const runBtn = document.getElementById("run");
+const submitBtn = document.getElementById("submit");
+const statusEl = document.getElementById("status");
+const rowsEl = document.getElementById("rows");
+const fillEl = document.getElementById("fill");
+const resultEl = document.getElementById("result");
+
+function start(shouldSubmit) {
+  runBtn.disabled = submitBtn.disabled = true;
+  rowsEl.innerHTML = "";
+  resultEl.className = "";
+  fillEl.style.width = "0";
+  statusEl.textContent = "iniciando…";
+
+  const source = new EventSource("/run?submit=" + shouldSubmit);
+
+  source.addEventListener("start", (e) => {
+    const d = JSON.parse(e.data);
+    statusEl.textContent = `0/${d.total} · ${d.model}`;
+  });
+
+  source.addEventListener("progress", (e) => {
+    const d = JSON.parse(e.data);
+    statusEl.textContent = `${d.done}/${d.total}`;
+    fillEl.style.width = (d.done / d.total * 100) + "%";
+    const tr = document.createElement("tr");
+    const q = document.createElement("td");
+    q.className = "q";
+    q.textContent = d.question;
+    const a = document.createElement("td");
+    a.className = d.error ? "a err" : "a";
+    a.textContent = d.error ? d.error : (d.answer || "(vazio)");
+    tr.append(q, a);
+    rowsEl.append(tr);
+  });
+
+  source.addEventListener("submitted", (e) => {
+    const d = JSON.parse(e.data);
+    resultEl.className = "show";
+    resultEl.innerHTML =
+      `<div class="score">${d.score}%</div><div>${d.correct_count}/${d.total_attempted} corretas</div>` +
+      `<p class="sub">${d.message ?? ""}</p>`;
+    finish(source, "concluído");
+  });
+
+  source.addEventListener("done", () => finish(source, "concluído (não submetido)"));
+
+  source.addEventListener("error", (e) => {
+    if (e.data) {
+      resultEl.className = "show";
+      resultEl.innerHTML = `<strong class="err">Erro:</strong> ${JSON.parse(e.data).message}`;
+    }
+    finish(source, "interrompido");
+  });
+}
+
+function finish(source, label) {
+  source.close();
+  statusEl.textContent = label;
+  runBtn.disabled = submitBtn.disabled = false;
+}
+
+runBtn.onclick = () => start(false);
+submitBtn.onclick = () => start(true);
+</script>
+</body>
+</html>

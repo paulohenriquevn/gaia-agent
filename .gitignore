@@ -1,0 +1,8 @@
+node_modules/
+dist/
+answers.json
+.env
+.env.*
+!.env.example
+modelo/
+answers*.json
