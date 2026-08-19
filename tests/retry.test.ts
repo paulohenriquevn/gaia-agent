@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { withRetry } from "../src/lib/retry.ts";
+import { withRetry } from "../src/tools/support/retry.ts";
 
 const always = () => true;
 

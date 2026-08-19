@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { Tool } from "@theokit/sdk";
-import { htmlToText, truncate } from "../lib/html-text.ts";
-import { withRetry } from "../lib/retry.ts";
+import { htmlToText, truncate } from "./support/html-text.ts";
+import { withRetry } from "./support/retry.ts";
 import { request } from "../lib/http.ts";
-import { resilient } from "../lib/resilient-tool.ts";
+import { resilient } from "./support/resilient-tool.ts";
 
 /**
  * Acesso à Wikipedia pela API oficial (`api.php`).

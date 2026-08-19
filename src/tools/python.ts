@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
 import { z } from "zod";
 import { Tool } from "@theokit/sdk";
-import { truncate } from "../lib/html-text.ts";
-import { resilient } from "../lib/resilient-tool.ts";
+import { truncate } from "./support/html-text.ts";
+import { resilient } from "./support/resilient-tool.ts";
 
 export interface PythonResult {
   exitCode: number | null;

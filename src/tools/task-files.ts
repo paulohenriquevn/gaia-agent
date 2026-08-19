@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { Tool } from "@theokit/sdk";
 import * as XLSX from "xlsx";
-import { ScoringApi } from "../scoring-api.ts";
-import { truncate } from "../lib/html-text.ts";
-import { resilient } from "../lib/resilient-tool.ts";
+import type { TaskFileSource } from "../scoring-api.ts";
+import { truncate } from "./support/html-text.ts";
+import { resilient } from "./support/resilient-tool.ts";
 
 const TEXT_EXTENSIONS = new Set(["py", "txt", "csv", "json", "md", "jsonl", "xml", "yaml", "yml"]);
 const SHEET_EXTENSIONS = new Set(["xlsx", "xls"]);
@@ -39,7 +39,7 @@ export function decodeTaskFile(fileName: string, bytes: Uint8Array): string {
   );
 }
 
-export function createReadTaskFileTool(api: ScoringApi, fileNameByTaskId: Map<string, string>) {
+export function createReadTaskFileTool(api: TaskFileSource, fileNameByTaskId: Map<string, string>) {
   return Tool.create({
     name: "read_task_file",
     description:

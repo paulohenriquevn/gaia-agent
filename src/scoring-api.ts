@@ -50,7 +50,18 @@ export class ScoringApiError extends Error {
   }
 }
 
-export class ScoringApi {
+/**
+ * O que as ferramentas de anexo realmente precisam.
+ *
+ * Elas usavam a classe concreta inteira para chamar UM método, e o campo privado tornava
+ * o tipo nominal: um dublê estrutural nem compilava (`TS2739: missing baseUrl, getJson`).
+ * Era por isso que nenhuma delas tinha teste — o design impedia, não o esquecimento.
+ */
+export interface TaskFileSource {
+  fetchTaskFile(taskId: string): Promise<{ bytes: Uint8Array; contentType: string }>;
+}
+
+export class ScoringApi implements TaskFileSource {
   private readonly baseUrl: string;
 
   constructor(baseUrl: string = DEFAULT_BASE_URL) {

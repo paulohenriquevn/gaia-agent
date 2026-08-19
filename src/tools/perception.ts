@@ -1,9 +1,9 @@
 import { z } from "zod";
 import { Tool } from "@theokit/sdk";
-import { ScoringApi } from "../scoring-api.ts";
-import { analyzeAudio, describeImage } from "../lib/openrouter.ts";
+import type { TaskFileSource } from "../scoring-api.ts";
+import { analyzeAudio, describeImage } from "./support/openrouter.ts";
 import { extensionOf } from "./task-files.ts";
-import { resilient } from "../lib/resilient-tool.ts";
+import { resilient } from "./support/resilient-tool.ts";
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   png: "image/png",
@@ -20,7 +20,7 @@ export interface PerceptionConfig {
 }
 
 export function createDescribeImageTool(
-  api: ScoringApi,
+  api: TaskFileSource,
   fileNameByTaskId: Map<string, string>,
   config: PerceptionConfig,
 ) {
@@ -59,7 +59,7 @@ export function createDescribeImageTool(
 }
 
 export function createTranscribeAudioTool(
-  api: ScoringApi,
+  api: TaskFileSource,
   fileNameByTaskId: Map<string, string>,
   config: PerceptionConfig,
 ) {

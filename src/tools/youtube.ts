@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { Tool } from "@theokit/sdk";
 import { YoutubeTranscript } from "youtube-transcript";
-import { truncate } from "../lib/html-text.ts";
-import { resilient } from "../lib/resilient-tool.ts";
+import { truncate } from "./support/html-text.ts";
+import { resilient } from "./support/resilient-tool.ts";
 
 /** Extrai o id de 11 caracteres de qualquer forma de URL do YouTube. */
 export function extractVideoId(urlOrId: string): string {

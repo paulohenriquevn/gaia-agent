@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { describeToolFailure, resilient } from "../src/lib/resilient-tool.ts";
+import { describeToolFailure, resilient } from "../src/tools/support/resilient-tool.ts";
 
 describe("resilient", () => {
   it("devolve a saida do handler quando tudo da certo", async () => {

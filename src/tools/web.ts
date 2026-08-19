@@ -1,10 +1,10 @@
 import { z } from "zod";
 import { Tool } from "@theokit/sdk";
 import { createWebSearchTool, type WebSearchCallback } from "@theokit/sdk-tools";
-import { resilient } from "../lib/resilient-tool.ts";
+import { resilient } from "./support/resilient-tool.ts";
 import * as cheerio from "cheerio";
-import { htmlToText, truncate } from "../lib/html-text.ts";
-import { withRetry } from "../lib/retry.ts";
+import { htmlToText, truncate } from "./support/html-text.ts";
+import { withRetry } from "./support/retry.ts";
 import { request } from "../lib/http.ts";
 
 const USER_AGENT =

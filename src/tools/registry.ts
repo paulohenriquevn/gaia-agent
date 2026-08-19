@@ -1,6 +1,6 @@
 import type { CustomTool } from "@theokit/sdk";
 import { createWebFetchTool } from "@theokit/sdk-tools";
-import type { ScoringApi } from "../scoring-api.ts";
+import type { TaskFileSource } from "../scoring-api.ts";
 import type { SourceHealth } from "../lib/health.ts";
 import { createSearchTool, fetchPageTool } from "./web.ts";
 import { wikipediaPageTool, wikipediaSearchTool } from "./wikipedia.ts";
@@ -23,7 +23,7 @@ import type { WebSearchCallback } from "@theokit/sdk-tools";
  */
 
 export interface ToolRegistryOptions {
-  api: ScoringApi;
+  api: TaskFileSource;
   fileIndex: Map<string, string>;
   perception: PerceptionConfig;
   search: WebSearchCallback;

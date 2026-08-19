@@ -5,7 +5,7 @@
  * texto passando por um modelo perceptivo.
  */
 
-import { request } from "./http.ts";
+import { request } from "../../lib/http.ts";
 
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 

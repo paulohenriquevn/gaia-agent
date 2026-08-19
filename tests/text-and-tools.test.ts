@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { htmlToText, truncate, collapseBlankLines } from "../src/lib/html-text.ts";
+import { htmlToText, truncate, collapseBlankLines } from "../src/tools/support/html-text.ts";
 import { extractVideoId } from "../src/tools/youtube.ts";
 import { formatPythonResult } from "../src/tools/python.ts";
 import { extensionOf, decodeTaskFile } from "../src/tools/task-files.ts";
