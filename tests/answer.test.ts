@@ -4,8 +4,8 @@ import { extractFinalAnswer, normalizeAnswer } from "../src/lib/answer.ts";
 
 describe("extractFinalAnswer", () => {
   it("extrai o valor que segue o marcador FINAL ANSWER", () => {
-    const raw = "Checked the discography table.\n\nFINAL ANSWER: 3";
-    assert.equal(extractFinalAnswer(raw), "3");
+    const raw = "Checked the reference table.\n\nFINAL ANSWER: 12";
+    assert.equal(extractFinalAnswer(raw), "12");
   });
 
   it("aceita o marcador sem dois-pontos e com caixa diferente", () => {
@@ -93,8 +93,8 @@ describe("extractFinalAnswer com rascunho", () => {
 
 describe("extractFinalAnswer com marcador repetido", () => {
   it("usa o ULTIMO marcador, nao o primeiro", () => {
-    const raw = "FINAL ANSWER: 3\n\nWait, recomputing.\n\nFINAL ANSWER: 7";
-    assert.equal(extractFinalAnswer(raw), "7");
+    const raw = "FINAL ANSWER: 41\n\nWait, recomputing.\n\nFINAL ANSWER: 42";
+    assert.equal(extractFinalAnswer(raw), "42");
   });
 
   it("usa o ultimo rascunho quando o agente revisa antes de concluir", async () => {
