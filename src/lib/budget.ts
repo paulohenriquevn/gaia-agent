@@ -31,7 +31,7 @@ export function createRunBudget(options: BudgetOptions): BudgetHandle | undefine
   if (!Number.isFinite(options.limitUsd) || options.limitUsd <= 0) return undefined;
 
   return Budget.create({
-    name: "gaia-final-agent",
+    name: "hf-agents-course-unit4-final",
     scope: "process",
     mode: options.mode,
     limits: [

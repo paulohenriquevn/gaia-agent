@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GAIA Final Agent</title>
+<title>HF Agents Course — Unit 4 Final Assignment</title>
 <style>
   :root {
     color-scheme: light dark;
@@ -53,10 +53,13 @@
 <body>
 <main>
   <header>
-    <h1>GAIA Final Agent</h1>
+    <h1>Unit 4 — Final Assignment</h1>
     <p class="lede">
-      Agente do desafio final (Unit 4) do Hugging Face Agents Course, construído com
+      Agente do desafio final do <strong>Hugging Face Agents Course</strong>, construído com
       <code>@theokit/sdk</code> em TypeScript.
+    </p>
+    <p style="font-size:1.1rem;font-weight:600;margin:.75rem 0 0">
+      Resultado: <span style="color:var(--accent)">55% no GAIA nível 1</span> — 11 de 20, contra uma nota de corte de 30%.
     </p>
     <div class="tags">
       <span class="tag accent">TypeScript</span>
@@ -122,8 +125,8 @@
   </div>
 
   <h2>Rodando</h2>
-<pre>git clone https://huggingface.co/spaces/paulohenriquevn/gaia-final-agent
-cd gaia-final-agent
+<pre>git clone https://huggingface.co/spaces/paulohenriquevn/hf-agents-course-unit4-final
+cd hf-agents-course-unit4-final
 npm install
 
 echo "OPENROUTER_API_KEY=sk-or-v1-..." &gt; .env
@@ -136,10 +139,27 @@ npm run submit  # submete o answers.json já gerado</pre>
     aparece no leaderboard público do curso.
   </p>
 
+  <h2>Construído com</h2>
+  <p>
+    <strong><a href="https://theokit.dev">TheoKit SDK</a></strong> — SDK TypeScript e runtime de
+    agentes, com 43 provedores de LLM nas suas próprias chaves, MCP, subagentes, workflows e
+    sandbox de execução.
+  </p>
+  <p>
+    Site: <a href="https://theokit.dev">theokit.dev</a> ·
+    Código: <a href="https://github.com/usetheokit/theokit-sdk">github.com/usetheokit/theokit-sdk</a>
+  </p>
+  <p>
+    Deste SDK o projeto usa <code>Agent.create</code> com ferramentas próprias,
+    <code>Tool.create</code> com schemas Zod, <code>PermissionPlugin</code> para negar
+    ferramentas, <code>Retry.create</code> com jitter e <code>Budget</code> como teto de gasto.
+  </p>
+
   <footer>
     Hugging Face Agents Course ·
     <a href="https://huggingface.co/learn/agents-course">curso</a> ·
     <a href="https://huggingface.co/spaces/agents-course/Students_leaderboard">leaderboard</a> ·
+    <a href="https://theokit.dev">TheoKit</a> ·
     MIT
   </footer>
 </main>

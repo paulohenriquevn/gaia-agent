@@ -5,8 +5,8 @@ import { agentCodeUrlFromSpaceId, usernameFromSpaceId } from "../src/config.ts";
 describe("agentCodeUrlFromSpaceId", () => {
   it("monta a URL para /tree/main, que e o formato exigido pela API", () => {
     assert.equal(
-      agentCodeUrlFromSpaceId("paulohenriquevn/gaia-final-agent"),
-      "https://huggingface.co/spaces/paulohenriquevn/gaia-final-agent/tree/main",
+      agentCodeUrlFromSpaceId("paulohenriquevn/hf-agents-course-unit4-final"),
+      "https://huggingface.co/spaces/paulohenriquevn/hf-agents-course-unit4-final/tree/main",
     );
   });
 
@@ -18,7 +18,7 @@ describe("agentCodeUrlFromSpaceId", () => {
   });
 
   it("falha alto quando falta o dono do space", () => {
-    assert.throws(() => agentCodeUrlFromSpaceId("gaia-final-agent"), /usuario\/nome-do-space/);
+    assert.throws(() => agentCodeUrlFromSpaceId("hf-agents-course-unit4-final"), /usuario\/nome-do-space/);
   });
 
   it("falha alto para valor vazio", () => {
@@ -28,6 +28,6 @@ describe("agentCodeUrlFromSpaceId", () => {
 
 describe("usernameFromSpaceId", () => {
   it("extrai o dono do space", () => {
-    assert.equal(usernameFromSpaceId("paulohenriquevn/gaia-final-agent"), "paulohenriquevn");
+    assert.equal(usernameFromSpaceId("paulohenriquevn/hf-agents-course-unit4-final"), "paulohenriquevn");
   });
 });
