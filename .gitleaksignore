@@ -1,0 +1,10 @@
+# Segredos aceitos conscientemente pelo scanner.
+#
+# O .env guarda as credenciais locais de execução. Ele está no .gitignore, nunca foi
+# versionado (`git ls-files .env` é vazio) e o histórico está limpo — `gitleaks detect`
+# sobre os 11 commits não encontra nada. O achado aparece só porque o scanner varre o
+# diretório de trabalho, não apenas os arquivos versionados.
+#
+# Esta entrada silencia esse caso específico. Ela NÃO cobre segredo em arquivo versionado:
+# se uma credencial entrar num arquivo rastreado, o gate volta a bloquear o commit.
+.env:generic-api-key:2
