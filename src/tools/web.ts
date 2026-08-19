@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { Tool } from "@theokit/sdk";
-import { createWebSearchTool } from "@theokit/sdk-tools";
+import { createWebSearchTool, type WebSearchCallback } from "@theokit/sdk-tools";
 import { resilient } from "../lib/resilient-tool.ts";
 import * as cheerio from "cheerio";
 import { htmlToText, truncate } from "../lib/html-text.ts";
@@ -127,14 +127,16 @@ export async function fetchPageText(url: string, maxChars: number): Promise<stri
 /**
  * `web_search` vem de `@theokit/sdk-tools`: a ferramenta é agnóstica de provedor e
  * devolve `{ ok: false, error }` quando o backend falha, em vez de lançar e derrubar
- * o run. O backend abaixo é injetado por DIP.
+ * o run. O backend entra por injeção — ver `search-backend.ts`.
  */
-export const webSearchTool = createWebSearchTool({
-  description:
-    "Busca na web e devolve título, URL e trecho dos melhores resultados. Use para descobrir QUAIS páginas ler; depois use fetch_page. Para assuntos cobertos pela Wikipedia, prefira wikipedia_search, que é mais confiável.",
-  search: (query, maxResults) => searchWeb(query, maxResults),
-  defaultMaxResults: 5,
-});
+export function createSearchTool(search: WebSearchCallback) {
+  return createWebSearchTool({
+    description:
+      "Busca na web e devolve título, URL e trecho dos melhores resultados. Use para descobrir QUAIS páginas ler; depois use fetch_page. Para assuntos cobertos pela Wikipedia, prefira wikipedia_search, que é mais confiável.",
+    search,
+    defaultMaxResults: 5,
+  });
+}
 
 export const fetchPageTool = Tool.create({
   name: "fetch_page",

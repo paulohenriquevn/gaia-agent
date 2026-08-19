@@ -7,7 +7,7 @@ import { writeFileSync } from "node:fs";
 import { loadConfig } from "../config.ts";
 import { ScoringApi } from "../scoring-api.ts";
 import { answerAll } from "../runner.ts";
-import { probeSources } from "../agent.ts";
+import { probeSources, searchProviderName } from "../agent.ts";
 import { describeHealth } from "../lib/health.ts";
 
 const config = loadConfig();
@@ -15,7 +15,7 @@ const api = new ScoringApi();
 
 const questions = await api.fetchQuestions();
 const health = await probeSources();
-console.log(`Fontes -> ${describeHealth(health)}`);
+console.log(`Fontes -> ${describeHealth(health)} (busca via ${searchProviderName()})`);
 console.log(`Respondendo ${questions.length} questões com ${config.modelId} (concorrência ${config.concurrency})\n`);
 
 const outcomes = await answerAll(questions, api, { ...config, health }, config.concurrency, (outcome, done, total) => {

@@ -2,7 +2,8 @@ import { Agent } from "@theokit/sdk";
 import { ScoringApi, type GaiaQuestion } from "./scoring-api.ts";
 import { extractFinalAnswer } from "./lib/answer.ts";
 import { FatalRunError, classifyRunFailure } from "./lib/agent-errors.ts";
-import { fetchPageTool, webSearchTool, searchWeb } from "./tools/web.ts";
+import { fetchPageTool, createSearchTool } from "./tools/web.ts";
+import { resolveSearchBackend } from "./tools/search-backend.ts";
 import { runPythonTool } from "./tools/python.ts";
 import { youtubeTranscriptTool } from "./tools/youtube.ts";
 import { wikipediaPageTool, wikipediaSearchTool, searchWikipedia } from "./tools/wikipedia.ts";
@@ -64,10 +65,22 @@ export interface AgentConfig {
 
 /** Sonda as fontes externas uma vez, para a rodada inteira. */
 export function probeSources() {
+  const backend = resolveSearchBackend();
   return checkSources({
-    webSearch: () => searchWeb("wikipedia", 1),
+    // A sonda precisa de resultado, não só de resposta: um backend que devolve lista
+    // vazia para toda consulta é tão inútil quanto um que falha.
+    webSearch: async () => {
+      const hits = await backend.search("wikipedia", 1);
+      if (hits.length === 0) throw new Error("busca sem resultados");
+      return hits;
+    },
     wikipedia: () => searchWikipedia("Wikipedia", 1),
   });
+}
+
+/** Nome do provedor de busca em uso, para o log. */
+export function searchProviderName(): string {
+  return resolveSearchBackend().provider;
 }
 
 /** Índice task_id -> nome do anexo, para as ferramentas resolverem arquivos sem adivinhar. */
@@ -165,7 +178,7 @@ async function runWithModel(
     // convida o agente a gastar iterações numa porta fechada.
     tools: [
       ...(config.health?.wikipedia === false ? [] : [wikipediaSearchTool, wikipediaPageTool]),
-      ...(config.health?.webSearch === false ? [] : [webSearchTool]),
+      ...(config.health?.webSearch === false ? [] : [createSearchTool(resolveSearchBackend().search)]),
       fetchPageTool,
       runPythonTool,
       youtubeTranscriptTool,
