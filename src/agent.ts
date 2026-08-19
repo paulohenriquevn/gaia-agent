@@ -1,6 +1,7 @@
 import { Agent } from "@theokit/sdk";
 import { ScoringApi, type GaiaQuestion } from "./scoring-api.ts";
 import { extractFinalAnswer } from "./lib/answer.ts";
+import { FatalRunError, classifyRunFailure } from "./lib/agent-errors.ts";
 import { fetchPageTool, webSearchTool } from "./tools/web.ts";
 import { runPythonTool } from "./tools/python.ts";
 import { youtubeTranscriptTool } from "./tools/youtube.ts";
@@ -94,7 +95,11 @@ export async function answerQuestion(
   return { ...chosen, durationMs: primary.durationMs + fallback.durationMs };
 }
 
-/** Executa uma tentativa convertendo falha em resposta vazia, para o chamador decidir. */
+/**
+ * Executa uma tentativa convertendo falha em resposta vazia, para o chamador decidir.
+ * Falha fatal da conta é a exceção: ela sobe e derruba a rodada, porque nenhuma
+ * tentativa seguinte teria como dar certo.
+ */
 async function attempt(
   question: GaiaQuestion,
   api: ScoringApi,
@@ -105,6 +110,7 @@ async function attempt(
   try {
     return await runWithModel(question, api, fileIndex, config, modelId);
   } catch (error) {
+    if (error instanceof FatalRunError) throw error;
     return {
       answer: "",
       rawOutput: `[falha com ${modelId}] ${error instanceof Error ? error.message : String(error)}`,
@@ -159,13 +165,30 @@ async function runWithModel(
       : "";
 
     const run = await agent.send(`${question.question}${attachmentNote}`);
+
+    // O stream é consumido em vez de só aguardar o run: quando o provider recusa a
+    // chamada, `result.result` vem vazio e a razão só aparece no evento de status.
+    // Foi essa mensagem perdida que transformou "crédito acabou" em "sem detalhe".
+    const assistantTexts: string[] = [];
+    let failureDetail: string | undefined;
+
+    for await (const event of run.stream()) {
+      if (event.type === "assistant") {
+        for (const block of event.message.content) {
+          if (block.type === "text") assistantTexts.push(block.text);
+        }
+      } else if (event.type === "status" && String(event.status).toUpperCase() === "ERROR") {
+        failureDetail = event.message ?? failureDetail;
+      }
+    }
+
     const result = await run.wait();
 
     if (result.status === "error") {
-      throw new Error(`Run falhou para ${question.task_id}: ${result.result ?? "sem detalhe"}`);
+      throw classifyRunFailure(question.task_id, failureDetail ?? "sem detalhe do provider");
     }
 
-    const rawOutput = result.result ?? "";
+    const rawOutput = result.result ?? assistantTexts.join("\n");
     return {
       answer: extractFinalAnswer(rawOutput),
       rawOutput,

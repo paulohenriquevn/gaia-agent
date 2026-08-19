@@ -1,4 +1,5 @@
 import { answerQuestion, buildFileIndex, type AgentConfig } from "./agent.ts";
+import { FatalRunError } from "./lib/agent-errors.ts";
 import type { GaiaQuestion, ScoringApi, SubmittedAnswer } from "./scoring-api.ts";
 
 export interface QuestionOutcome {
@@ -32,8 +33,11 @@ export async function answerAll(
   let nextIndex = 0;
   let completed = 0;
 
+  let fatal: FatalRunError | undefined;
+
   async function worker(): Promise<void> {
     while (true) {
+      if (fatal !== undefined) return;
       const index = nextIndex++;
       if (index >= questions.length) return;
 
@@ -50,6 +54,13 @@ export async function answerAll(
           modelUsed: result.modelUsed,
         };
       } catch (error) {
+        // Crédito esgotado ou chave inválida condena todas as questões restantes.
+        // Continuar produziria uma rodada inteira de respostas vazias e esconderia
+        // a causa atrás de vinte falhas idênticas.
+        if (error instanceof FatalRunError) {
+          fatal = error;
+          return;
+        }
         outcomes[index] = {
           task_id: question.task_id,
           question: question.question,
@@ -66,6 +77,9 @@ export async function answerAll(
   await Promise.all(
     Array.from({ length: Math.min(concurrency, questions.length) }, () => worker()),
   );
+
+  if (fatal !== undefined) throw fatal;
+
   return outcomes;
 }
 

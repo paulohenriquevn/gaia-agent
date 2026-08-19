@@ -31,3 +31,11 @@ Formato: [Keep a Changelog](https://keepachangelog.com/) · [Semantic Versioning
 ### Fixed
 - Busca web derrubava a questão inteira ao receber 403 por volume de consultas
 - Fallback de modelo passa a cobrir também runs que terminam em erro, não só respostas vazias
+- Benchmark local (`npm run score`) que corrige as respostas contra um gabarito antes
+  de submeter, com combinação de várias rodadas por precedência de arquivo
+- Classificação de falha do provider: crédito esgotado e chave inválida abortam a
+  rodada inteira em vez de virarem vinte respostas vazias
+
+### Fixed
+- Causa real do erro do provider agora é capturada do evento de status; antes a
+  mensagem se perdia e todo erro aparecia como "sem detalhe"
