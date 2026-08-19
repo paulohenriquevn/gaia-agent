@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [workspace, develop, main]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # O projeto roda com --experimental-strip-types, que exige 22.12+.
+          node-version: "22.12"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Verificação de tipos
+        run: npm run typecheck
+
+      - name: Lint
+        run: npx eslint "src/**/*.ts" "tests/**/*.ts"
+
+      - name: Testes
+        run: npm test
+
+      - name: Segredos
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -5,7 +5,8 @@ import { buildTools } from "./tools/registry.ts";
 import { failureReason, harvestStream, rawOutputOf } from "./lib/run-outcome.ts";
 import { ScoringApi, type GaiaQuestion } from "./scoring-api.ts";
 import { extractFinalAnswer } from "./lib/answer.ts";
-import { FatalRunError, classifyRunFailure } from "./lib/agent-errors.ts";
+import { classifyRunFailure } from "./lib/agent-errors.ts";
+import { answerWithStrategy, type QuestionAnswer } from "./answer-strategy.ts";
 import { resolveSearchBackend } from "./tools/search-backend.ts";
 import { searchWikipedia } from "./tools/wikipedia.ts";
 import { checkSources, healthGuidance, type SourceHealth } from "./lib/health.ts";
@@ -66,89 +67,19 @@ export function buildFileIndex(questions: GaiaQuestion[]): Map<string, string> {
   return index;
 }
 
-export interface QuestionAnswer {
-  answer: string;
-  rawOutput: string;
-  durationMs: number;
-  /** Modelo que efetivamente produziu a resposta. */
-  modelUsed: string;
-  /** O run parou no teto de iterações com o modelo ainda querendo usar ferramentas. */
-  truncated?: boolean;
-}
-
-/**
- * Responde uma questão, caindo para o modelo de fallback se o primário
- * devolver resposta vazia (tipicamente filtro de conteúdo do provider).
- */
-export async function answerQuestion(
+/** Responde uma questão aplicando a política de tentativas de `answer-strategy.ts`. */
+export function answerQuestion(
   question: GaiaQuestion,
   api: ScoringApi,
   fileIndex: Map<string, string>,
   config: AgentConfig,
 ): Promise<QuestionAnswer> {
-  // 1. Pesquisa com ferramentas: o caminho que produz as respostas verificadas.
-  const researched = await attempt(question, api, fileIndex, config, config.modelId);
-  if (researched.answer) return researched;
-
-  // 2. Sem resposta. Antes de trocar de modelo, pergunta ao mesmo modelo sem
-  //    ferramenta nenhuma: alguns nunca concluem enquanto podem chamar ferramentas,
-  //    mas respondem de primeira quando não há nenhuma disponível.
-  const known = await attemptDirect(question, config, config.modelId);
-  if (known.answer) {
-    return { ...known, durationMs: researched.durationMs + known.durationMs };
-  }
-
-  // 3. Ainda nada: outro modelo, com ferramentas. Desistir aqui custa a questão.
-  const fallback = await attempt(question, api, fileIndex, config, config.fallbackModelId);
-  const chosen = fallback.answer ? fallback : researched;
-  return {
-    ...chosen,
-    durationMs: researched.durationMs + known.durationMs + fallback.durationMs,
-  };
-}
-
-/** Tentativa sem ferramentas, com falha convertida em resposta vazia. */
-async function attemptDirect(
-  question: GaiaQuestion,
-  config: AgentConfig,
-  modelId: string,
-): Promise<QuestionAnswer> {
-  try {
-    return await answerFromKnowledge(question, config, modelId);
-  } catch (error) {
-    if (error instanceof FatalRunError) throw error;
-    return {
-      answer: "",
-      rawOutput: `[conhecimento direto falhou] ${error instanceof Error ? error.message : String(error)}`,
-      durationMs: 0,
-      modelUsed: modelId,
-    };
-  }
-}
-
-/**
- * Executa uma tentativa convertendo falha em resposta vazia, para o chamador decidir.
- * Falha fatal da conta é a exceção: ela sobe e derruba a rodada, porque nenhuma
- * tentativa seguinte teria como dar certo.
- */
-async function attempt(
-  question: GaiaQuestion,
-  api: ScoringApi,
-  fileIndex: Map<string, string>,
-  config: AgentConfig,
-  modelId: string,
-): Promise<QuestionAnswer> {
-  try {
-    return await runWithModel(question, api, fileIndex, config, modelId);
-  } catch (error) {
-    if (error instanceof FatalRunError) throw error;
-    return {
-      answer: "",
-      rawOutput: `[falha com ${modelId}] ${error instanceof Error ? error.message : String(error)}`,
-      durationMs: 0,
-      modelUsed: modelId,
-    };
-  }
+  return answerWithStrategy(question, {
+    research: (q, modelId) => runWithModel(q, api, fileIndex, config, modelId),
+    recall: (q, modelId) => answerFromKnowledge(q, config, modelId),
+    modelId: config.modelId,
+    fallbackModelId: config.fallbackModelId,
+  });
 }
 
 /** Cria o agente de uma tentativa. Isolado para que a conversa não carregue a montagem. */
@@ -274,3 +205,5 @@ async function answerFromKnowledge(
     await agent[Symbol.asyncDispose]();
   }
 }
+
+export type { QuestionAnswer } from "./answer-strategy.ts";

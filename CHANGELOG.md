@@ -15,37 +15,34 @@ Formato: [Keep a Changelog](https://keepachangelog.com/) · [Semantic Versioning
 
 ### Changed
 - Space passa a usar SDK `static` em vez de `docker`: SDK Docker exige plano pago na
-  conta que hospeda o projeto, então o agente executa localmente e o Space publica o código
 - Fallback automático de modelo quando o primário devolve resposta vazia por filtro
-  de conteúdo do provider (enunciados como texto invertido disparam o filtro)
 - Teste de fumaça (`npm run smoke`) que responde uma questão de ponta a ponta
 
 ### Fixed
 - Agente não subia por falta de chave: o SDK resolve `apiKey` do campo explícito ou de
-  `THEOKIT_API_KEY`, nunca das provider keys — a chave do OpenRouter passa explicitamente
 - Descarte do agente com `try/finally` em vez de `await using`, não suportado no Node 22
 - Ferramentas `wikipedia_search` e `wikipedia_page` usando a API oficial da Wikipedia,
-  que não bloqueia por volume como os buscadores gerais
 - Retry com backoff exponencial na busca web, com endpoint alternativo
-
-### Fixed
 - Busca web derrubava a questão inteira ao receber 403 por volume de consultas
 - Fallback de modelo passa a cobrir também runs que terminam em erro, não só respostas vazias
 - Benchmark local (`npm run score`) que corrige as respostas contra um gabarito antes
-  de submeter, com combinação de várias rodadas por precedência de arquivo
 - Classificação de falha do provider: crédito esgotado e chave inválida abortam a
-  rodada inteira em vez de virarem vinte respostas vazias
-
-### Fixed
 - Causa real do erro do provider agora é capturada do evento de status; antes a
-  mensagem se perdia e todo erro aparecia como "sem detalhe"
 - Teto de iterações por questão configurável (`MAX_ITERATIONS`, padrão 30); o padrão do
-  SDK é 8, insuficiente para uma questão de pesquisa
 - Verificação de disponibilidade das fontes no início da rodada: ferramenta de fonte
-  fora do ar não é oferecida ao agente
 - `web_search` passa a ser a ferramenta de `@theokit/sdk-tools`, com backend injetado
-
-### Fixed
 - Ferramenta que lançava exceção derrubava o run inteiro após poucas falhas; agora toda
-  ferramenta devolve o motivo da falha como texto e o agente escolhe outro caminho
 - Runs truncados no teto de iterações são sinalizados em vez de virarem resposta vazia
+- Segredos do processo deixam de ser expostos ao código Python executado pelo agente,
+  que é escrito pelo modelo a partir de páginas lidas na web
+- Leitura de página passa a recusar endereços internos, de loopback e link-local
+- Toda chamada de rede ganha prazo; antes uma requisição podia prender um worker
+- Prazo do subprocesso Python passa a encerrar o grupo de processos e a resolver sempre
+- Resposta final passa a usar o último marcador; com o primeiro, um modelo que se
+  corrigia tinha o rascunho descartado submetido
+- Normalização da resposta e correção local passam a compartilhar a mesma regra, que
+  havia divergido e inflava o score estimado
+- `/run` passa a exigir token; antes gastava crédito e publicava sem autenticação
+- Servidor deixa de ficar preso em 409 quando o cliente aborta a execução
+- Servidor passa a sondar as fontes, como os demais entrypoints
+- Falha fatal preserva as respostas já obtidas em vez de descartar a rodada inteira
