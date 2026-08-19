@@ -1,0 +1,15 @@
+
+> gaia-final-agent@0.1.0 smoke
+> node --env-file-if-exists=.env --experimental-strip-types src/cli/smoke.ts bda648d7
+
+Fontes: busca web: indisponível | wikipedia: ok (busca via duckduckgo)
+Modelo: openrouter/nvidia/nemotron-3-ultra-550b-a55b:free
+Questão bda648d7-d618-4883-88f4-3466eabd860e
+> Where were the Vietnamese specimens described by Kuznetzov in Nedoshivina's 2010 paper eventually deposited? Just give me the city name without abbreviations.
+
+--- saída bruta ---
+
+--- fim ---
+
+Resposta extraída: ""
+Tempo: 196.7s

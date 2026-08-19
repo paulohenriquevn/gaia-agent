@@ -57,3 +57,36 @@ describe("normalizeAnswer", () => {
     assert.equal(normalizeAnswer("3"), "3");
   });
 });
+
+describe("extractWorkingAnswer", () => {
+  it("recupera o rascunho escrito antes da pesquisa", async () => {
+    const { extractWorkingAnswer } = await import("../src/lib/answer.ts");
+    assert.equal(extractWorkingAnswer("WORKING ANSWER: Saint Petersburg\nagora vou pesquisar"), "Saint Petersburg");
+  });
+
+  it("trata 'unknown' como ausencia de resposta", async () => {
+    const { extractWorkingAnswer } = await import("../src/lib/answer.ts");
+    assert.equal(extractWorkingAnswer("WORKING ANSWER: unknown"), "");
+  });
+
+  it("devolve vazio quando nao ha rascunho", async () => {
+    const { extractWorkingAnswer } = await import("../src/lib/answer.ts");
+    assert.equal(extractWorkingAnswer("apenas texto"), "");
+  });
+});
+
+describe("extractFinalAnswer com rascunho", () => {
+  it("prefere FINAL ANSWER ao rascunho", () => {
+    const raw = "WORKING ANSWER: Moscow\n...\nFINAL ANSWER: Saint Petersburg";
+    assert.equal(extractFinalAnswer(raw), "Saint Petersburg");
+  });
+
+  it("cai para o rascunho quando o run foi interrompido antes de concluir", () => {
+    const raw = "WORKING ANSWER: Saint Petersburg\nsearching wikipedia...\nsearching again...";
+    assert.equal(extractFinalAnswer(raw), "Saint Petersburg");
+  });
+
+  it("ignora rascunho 'unknown' e usa a ultima linha", () => {
+    assert.equal(extractFinalAnswer("WORKING ANSWER: unknown\nRd5"), "Rd5");
+  });
+});

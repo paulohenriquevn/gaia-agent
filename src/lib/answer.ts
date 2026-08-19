@@ -9,14 +9,37 @@
 const FINAL_ANSWER_PATTERN = /final\s*answer\s*:?\s*(.*)/is;
 
 /**
+ * Rascunho que o agente escreve ANTES de pesquisar. Serve de rede: quando o run é
+ * interrompido no meio da investigação, esta linha costuma ser tudo o que sobrou —
+ * e um rascunho plausível vale mais que resposta vazia, que erra sempre.
+ */
+const WORKING_ANSWER_PATTERN = /working\s*answer\s*:?\s*(.*)/i;
+
+/**
  * Extrai a resposta final do texto bruto do agente.
  * Sem o marcador, cai para a última linha não vazia — melhor um palpite do que
  * submeter um parágrafo inteiro, que erra o exact match com certeza.
  */
 export function extractFinalAnswer(rawOutput: string): string {
-  const match = rawOutput.match(FINAL_ANSWER_PATTERN);
-  const candidate = match ? match[1] : lastNonEmptyLine(rawOutput);
-  return normalizeAnswer(candidate);
+  const finalMatch = rawOutput.match(FINAL_ANSWER_PATTERN);
+  if (finalMatch) return normalizeAnswer(finalMatch[1]);
+
+  const working = extractWorkingAnswer(rawOutput);
+  if (working !== "") return working;
+
+  return normalizeAnswer(lastNonEmptyLine(rawOutput));
+}
+
+/**
+ * Recupera o rascunho anterior à pesquisa. Devolve string vazia quando ele não existe
+ * ou quando o agente declarou não saber — "unknown" não é uma resposta.
+ */
+export function extractWorkingAnswer(rawOutput: string): string {
+  const match = rawOutput.match(WORKING_ANSWER_PATTERN);
+  if (!match) return "";
+
+  const candidate = normalizeAnswer(match[1]);
+  return /^(unknown|desconhecido|n\/a|none)$/i.test(candidate) ? "" : candidate;
 }
 
 function lastNonEmptyLine(text: string): string {
