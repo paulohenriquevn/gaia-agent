@@ -7,6 +7,8 @@ export interface QuestionOutcome {
   answer: string;
   rawOutput: string;
   durationMs: number;
+  /** Modelo que produziu a resposta; ausente quando a questão falhou. */
+  modelUsed?: string;
   /** Mensagem do erro quando a questão falhou; ausente em caso de sucesso. */
   error?: string;
 }
@@ -45,6 +47,7 @@ export async function answerAll(
           answer: result.answer,
           rawOutput: result.rawOutput,
           durationMs: result.durationMs,
+          modelUsed: result.modelUsed,
         };
       } catch (error) {
         outcomes[index] = {

@@ -16,3 +16,11 @@ Formato: [Keep a Changelog](https://keepachangelog.com/) · [Semantic Versioning
 ### Changed
 - Space passa a usar SDK `static` em vez de `docker`: SDK Docker exige plano pago na
   conta que hospeda o projeto, então o agente executa localmente e o Space publica o código
+- Fallback automático de modelo quando o primário devolve resposta vazia por filtro
+  de conteúdo do provider (enunciados como texto invertido disparam o filtro)
+- Teste de fumaça (`npm run smoke`) que responde uma questão de ponta a ponta
+
+### Fixed
+- Agente não subia por falta de chave: o SDK resolve `apiKey` do campo explícito ou de
+  `THEOKIT_API_KEY`, nunca das provider keys — a chave do OpenRouter passa explicitamente
+- Descarte do agente com `try/finally` em vez de `await using`, não suportado no Node 22

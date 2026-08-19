@@ -69,7 +69,8 @@ export function loadConfig(): AppConfig {
 
   return {
     openRouterApiKey,
-    modelId: optional("MODEL_ID", "openrouter/anthropic/claude-sonnet-4.5"),
+    modelId: optional("MODEL_ID", "openrouter/anthropic/claude-sonnet-5"),
+    fallbackModelId: optional("FALLBACK_MODEL_ID", "openrouter/google/gemini-3-flash-preview"),
     visionModel: optional("VISION_MODEL", "google/gemini-2.5-flash"),
     audioModel: optional("AUDIO_MODEL", "google/gemini-2.5-flash"),
     cwd: optional("AGENT_CWD", process.cwd()),

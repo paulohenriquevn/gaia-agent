@@ -38,6 +38,13 @@ FINAL ANSWER: <the answer>`;
 
 export interface AgentConfig {
   modelId: string;
+  /**
+   * Modelo usado quando o primário devolve resposta vazia.
+   * Alguns enunciados do GAIA (texto invertido, por exemplo) disparam o filtro de
+   * conteúdo do provider, que encerra o run sem emitir texto. Um modelo de outra
+   * família costuma responder normalmente.
+   */
+  fallbackModelId: string;
   visionModel: string;
   audioModel: string;
   openRouterApiKey: string;
@@ -54,24 +61,58 @@ export function buildFileIndex(questions: GaiaQuestion[]): Map<string, string> {
   return index;
 }
 
+export interface QuestionAnswer {
+  answer: string;
+  rawOutput: string;
+  durationMs: number;
+  /** Modelo que efetivamente produziu a resposta. */
+  modelUsed: string;
+}
+
 /**
- * Responde uma questão. Cada questão roda num agente próprio e descartável:
- * contexto de uma questão nunca deve contaminar a seguinte.
+ * Responde uma questão, caindo para o modelo de fallback se o primário
+ * devolver resposta vazia (tipicamente filtro de conteúdo do provider).
  */
 export async function answerQuestion(
   question: GaiaQuestion,
   api: ScoringApi,
   fileIndex: Map<string, string>,
   config: AgentConfig,
-): Promise<{ answer: string; rawOutput: string; durationMs: number }> {
+): Promise<QuestionAnswer> {
+  const primary = await runWithModel(question, api, fileIndex, config, config.modelId);
+  if (primary.answer) return primary;
+
+  const fallback = await runWithModel(question, api, fileIndex, config, config.fallbackModelId);
+  return {
+    ...fallback,
+    durationMs: primary.durationMs + fallback.durationMs,
+  };
+}
+
+/** Uma tentativa de resposta com um modelo específico. */
+async function runWithModel(
+  question: GaiaQuestion,
+  api: ScoringApi,
+  fileIndex: Map<string, string>,
+  config: AgentConfig,
+  modelId: string,
+): Promise<QuestionAnswer> {
   const perception: PerceptionConfig = {
     apiKey: config.openRouterApiKey,
     visionModel: config.visionModel,
     audioModel: config.audioModel,
   };
 
-  await using agent = await Agent.create({
-    model: { id: config.modelId },
+  // Disposal explícito em vez de `await using`: explicit resource management só
+  // chega no Node 24, e o runtime aqui é o 22 LTS. Vazar o runtime por questão
+  // esgotaria os recursos no meio da rodada.
+  const agent = await Agent.create({
+    // O SDK resolve `apiKey` a partir deste campo ou de THEOKIT_API_KEY — nunca das
+    // provider keys. Passar a chave do OpenRouter aqui é o que dispensa a THEOKIT_API_KEY:
+    // com OPENROUTER_API_KEY no ambiente o SDK escolhe o runtime local real, que fala
+    // direto com o provider.
+    apiKey: config.openRouterApiKey,
+    model: { id: modelId },
     systemPrompt: SYSTEM_PROMPT,
     local: { cwd: config.cwd, settingSources: [] },
     tools: [
@@ -85,21 +126,26 @@ export async function answerQuestion(
     ],
   });
 
-  const attachmentNote = question.file_name
-    ? `\n\nThis question has an attached file named "${question.file_name}". Its task_id is "${question.task_id}" — pass that task_id to the file tools.`
-    : "";
+  try {
+    const attachmentNote = question.file_name
+      ? `\n\nThis question has an attached file named "${question.file_name}". Its task_id is "${question.task_id}" — pass that task_id to the file tools.`
+      : "";
 
-  const run = await agent.send(`${question.question}${attachmentNote}`);
-  const result = await run.wait();
+    const run = await agent.send(`${question.question}${attachmentNote}`);
+    const result = await run.wait();
 
-  if (result.status === "error") {
-    throw new Error(`Run falhou para ${question.task_id}: ${result.result ?? "sem detalhe"}`);
+    if (result.status === "error") {
+      throw new Error(`Run falhou para ${question.task_id}: ${result.result ?? "sem detalhe"}`);
+    }
+
+    const rawOutput = result.result ?? "";
+    return {
+      answer: extractFinalAnswer(rawOutput),
+      rawOutput,
+      durationMs: result.durationMs ?? 0,
+      modelUsed: modelId,
+    };
+  } finally {
+    await agent[Symbol.asyncDispose]();
   }
-
-  const rawOutput = result.result ?? "";
-  return {
-    answer: extractFinalAnswer(rawOutput),
-    rawOutput,
-    durationMs: result.durationMs ?? 0,
-  };
 }
