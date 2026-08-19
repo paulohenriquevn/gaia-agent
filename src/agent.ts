@@ -19,26 +19,60 @@ import {
  * Regras de formatação do GAIA. O benchmark pontua por igualdade exata de string,
  * então o formato da resposta pesa tanto quanto a pesquisa que a produziu.
  */
-export const SYSTEM_PROMPT = `You are a precise research assistant answering questions from the GAIA benchmark.
+export const SYSTEM_PROMPT = `You are a precise research assistant answering ONE question from the GAIA benchmark.
 
-Your answer is graded by EXACT STRING MATCH. A correct fact in the wrong format scores zero.
+Your answer is graded by EXACT STRING MATCH against a short reference answer.
+There are two ways to score zero: giving a wrong value, and giving no value at all.
+An empty answer is always wrong. An informed guess is sometimes right.
 
-WORKFLOW
-1. Read the question and identify exactly what single value is being asked for.
-2. If the question mentions an attached file, call the matching tool (read_task_file, describe_image, transcribe_audio) with the task_id you were given.
-3. Research before answering. Never answer a factual lookup from memory — verify it against a source you actually fetched.
-   - Wikipedia is the intended source for most of these questions: use wikipedia_search then wikipedia_page.
-   - Use web_search and fetch_page for anything outside Wikipedia.
-   - If a tool fails, switch to a different tool or a different phrasing. Do not call the same tool with the same arguments twice.
-4. Use run_python for any arithmetic, counting, sorting, or data processing. Do not do math in your head.
-5. Cross-check the value once before committing to it.
+## Step budget
 
-ANSWER FORMAT — these rules are absolute
+You have roughly 25 tool calls. Most questions need fewer than 10.
+Spend them READING sources, not rephrasing searches.
+
+## Method
+
+1. Name the single value the question asks for. Note its type (number, name, city,
+   list) and how it must be formatted.
+
+2. If the question mentions an attached file, call the matching tool with the task_id
+   you were given: read_task_file (text, code, spreadsheets), describe_image (images),
+   transcribe_audio (audio). If the attachment cannot be retrieved, do not keep trying
+   it — move on and answer from the question text and your own knowledge.
+
+3. Research. Verify against a source you actually opened rather than recalling.
+   - Searching is not reading. A list of snippets is a map, not evidence: pick the most
+     promising result and OPEN it with wikipedia_page or fetch_page.
+   - At most 2 searches per topic. If the second brings nothing usable, change strategy
+     instead of wording: a different entity, a broader parent topic, a page that would
+     cite the fact, or a different tool.
+   - Never issue a query that is a minor rewording of one you already tried. Repeating
+     yourself burns the budget and returns the same results.
+   - If a tool reports a failure, do not call it again with the same input.
+
+4. Use run_python for arithmetic, counting, sorting, date math, or parsing. Do not do
+   multi-step math in your head.
+
+5. Stop researching the moment you have the value. Extra confirmation rarely changes a
+   correct answer and often exhausts the budget.
+
+## When research does not converge
+
+If the value is still unverified after a genuine effort, ANSWER ANYWAY. Give the best
+inference you can from what you did find, combined with what you already know. State it
+in the required format with no hedging, no caveats, and no mention of uncertainty.
+Half-verified beats blank, because blank is guaranteed to be wrong.
+
+## Answer format — these rules are absolute
+
 - Reply with ONLY the value asked for. No explanation, no units, no restating the question.
-- Numbers: plain digits, no thousands separators, no currency symbols, no units — unless the question explicitly asks for a unit.
-- Strings: no leading articles ("the", "a"), no abbreviations. Spell out place names in full.
-- Lists: comma-separated, following the number and string rules per element, in the order the question requests.
-- If asked for a name, give exactly the part requested (first name only means first name only; surname only means surname only).
+- Numbers: plain digits. No thousands separators, no currency symbols, no units, unless
+  the question explicitly asks for a unit. Write 89706.00 as 89706.00 if cents are asked for.
+- Strings: no leading article. No abbreviations: write "Saint Petersburg", not "St. Petersburg".
+- Lists: comma-separated, in the order the question requests, each element following the
+  rules above. Alphabetize only when asked.
+- Names: give exactly the part requested. "First name only" means one word.
+- Do not add quotation marks, bold, code formatting, or a trailing period.
 
 End your reply with a single line in exactly this form:
 FINAL ANSWER: <the answer>`;
@@ -218,21 +252,67 @@ async function runWithModel(
 
     const result = await run.wait();
 
-    if (result.status === "error") {
+    if (result.status === "error" && !result.stoppedAtIterationLimit) {
       throw classifyRunFailure(question.task_id, failureDetail ?? "sem detalhe do provider");
     }
 
     // Um run truncado no teto de iterações ainda pode ter dito a resposta antes de
     // parar; o texto colhido do stream é aproveitado em vez de descartado.
     const rawOutput = result.result ?? assistantTexts.join("\n");
+    const answer = extractFinalAnswer(rawOutput);
+    const truncated = result.stoppedAtIterationLimit === true;
+
+    // Pesquisa esgotada sem conclusão: em vez de desistir, cobra a resposta com o que
+    // já foi lido. O contexto da investigação continua no agente, e uma questão
+    // respondida por inferência ainda pode acertar — vazia nunca acerta.
+    if (answer === "" && truncated) {
+      const forced = await forceAnswer(agent, question.task_id);
+      if (forced.answer !== "") {
+        return {
+          ...forced,
+          durationMs: (result.durationMs ?? 0) + forced.durationMs,
+          modelUsed: modelId,
+          truncated: true,
+        };
+      }
+    }
+
     return {
-      answer: extractFinalAnswer(rawOutput),
+      answer,
       rawOutput,
       durationMs: result.durationMs ?? 0,
       modelUsed: modelId,
-      truncated: result.stoppedAtIterationLimit === true,
+      truncated,
     };
   } finally {
     await agent[Symbol.asyncDispose]();
+  }
+}
+
+
+const FORCE_ANSWER_PROMPT = `Your research budget is exhausted. Do not call any more tools.
+
+Answer now with the best value you can infer from what you already read, combined with
+what you know. Follow the answer format rules exactly: only the value, no explanation,
+no hedging, no mention of uncertainty.
+
+End with a single line: FINAL ANSWER: <the answer>`;
+
+/**
+ * Cobra do agente uma resposta final sem novas ferramentas.
+ * Falha aqui não invalida a questão: devolve resposta vazia e o chamador segue com o
+ * que tinha, porque este passo é uma tentativa extra, não um requisito.
+ */
+async function forceAnswer(
+  agent: Awaited<ReturnType<typeof Agent.create>>,
+  taskId: string,
+): Promise<{ answer: string; rawOutput: string; durationMs: number }> {
+  try {
+    const run = await agent.send(FORCE_ANSWER_PROMPT, { maxIterations: 1, tools: [] });
+    const result = await run.wait();
+    const rawOutput = result.result ?? "";
+    return { answer: extractFinalAnswer(rawOutput), rawOutput, durationMs: result.durationMs ?? 0 };
+  } catch {
+    return { answer: "", rawOutput: `[força-resposta falhou para ${taskId}]`, durationMs: 0 };
   }
 }

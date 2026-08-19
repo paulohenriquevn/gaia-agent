@@ -7,3 +7,9 @@ Modelo: openrouter/nvidia/nemotron-3-ultra-550b-a55b:free
 Questão bda648d7-d618-4883-88f4-3466eabd860e
 > Where were the Vietnamese specimens described by Kuznetzov in Nedoshivina's 2010 paper eventually deposited? Just give me the city name without abbreviations.
 
+--- saída bruta ---
+[falha com openrouter/nvidia/nemotron-3-ultra-550b-a55b:free] Run falhou para bda648d7-d618-4883-88f4-3466eabd860e: sem detalhe do provider
+--- fim ---
+
+Resposta extraída: ""
+Tempo: 421.5s
