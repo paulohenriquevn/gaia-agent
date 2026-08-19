@@ -4,6 +4,7 @@ import { extractFinalAnswer } from "./lib/answer.ts";
 import { fetchPageTool, webSearchTool } from "./tools/web.ts";
 import { runPythonTool } from "./tools/python.ts";
 import { youtubeTranscriptTool } from "./tools/youtube.ts";
+import { wikipediaPageTool, wikipediaSearchTool } from "./tools/wikipedia.ts";
 import { createReadTaskFileTool } from "./tools/task-files.ts";
 import {
   createDescribeImageTool,
@@ -22,7 +23,10 @@ Your answer is graded by EXACT STRING MATCH. A correct fact in the wrong format 
 WORKFLOW
 1. Read the question and identify exactly what single value is being asked for.
 2. If the question mentions an attached file, call the matching tool (read_task_file, describe_image, transcribe_audio) with the task_id you were given.
-3. Research with web_search and fetch_page. Never answer a factual lookup from memory — verify it against a source you actually fetched. Wikipedia is usually the intended source.
+3. Research before answering. Never answer a factual lookup from memory — verify it against a source you actually fetched.
+   - Wikipedia is the intended source for most of these questions: use wikipedia_search then wikipedia_page.
+   - Use web_search and fetch_page for anything outside Wikipedia.
+   - If a tool fails, switch to a different tool or a different phrasing. Do not call the same tool with the same arguments twice.
 4. Use run_python for any arithmetic, counting, sorting, or data processing. Do not do math in your head.
 5. Cross-check the value once before committing to it.
 
@@ -79,14 +83,35 @@ export async function answerQuestion(
   fileIndex: Map<string, string>,
   config: AgentConfig,
 ): Promise<QuestionAnswer> {
-  const primary = await runWithModel(question, api, fileIndex, config, config.modelId);
+  const primary = await attempt(question, api, fileIndex, config, config.modelId);
   if (primary.answer) return primary;
 
-  const fallback = await runWithModel(question, api, fileIndex, config, config.fallbackModelId);
-  return {
-    ...fallback,
-    durationMs: primary.durationMs + fallback.durationMs,
-  };
+  // O primário não produziu resposta — filtro de conteúdo, run interrompido, ou
+  // ferramenta que falhou repetidas vezes. Vale uma tentativa com outro modelo:
+  // desistir aqui custa a questão inteira.
+  const fallback = await attempt(question, api, fileIndex, config, config.fallbackModelId);
+  const chosen = fallback.answer ? fallback : primary;
+  return { ...chosen, durationMs: primary.durationMs + fallback.durationMs };
+}
+
+/** Executa uma tentativa convertendo falha em resposta vazia, para o chamador decidir. */
+async function attempt(
+  question: GaiaQuestion,
+  api: ScoringApi,
+  fileIndex: Map<string, string>,
+  config: AgentConfig,
+  modelId: string,
+): Promise<QuestionAnswer> {
+  try {
+    return await runWithModel(question, api, fileIndex, config, modelId);
+  } catch (error) {
+    return {
+      answer: "",
+      rawOutput: `[falha com ${modelId}] ${error instanceof Error ? error.message : String(error)}`,
+      durationMs: 0,
+      modelUsed: modelId,
+    };
+  }
 }
 
 /** Uma tentativa de resposta com um modelo específico. */
@@ -116,6 +141,8 @@ async function runWithModel(
     systemPrompt: SYSTEM_PROMPT,
     local: { cwd: config.cwd, settingSources: [] },
     tools: [
+      wikipediaSearchTool,
+      wikipediaPageTool,
       webSearchTool,
       fetchPageTool,
       runPythonTool,

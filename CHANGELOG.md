@@ -24,3 +24,10 @@ Formato: [Keep a Changelog](https://keepachangelog.com/) · [Semantic Versioning
 - Agente não subia por falta de chave: o SDK resolve `apiKey` do campo explícito ou de
   `THEOKIT_API_KEY`, nunca das provider keys — a chave do OpenRouter passa explicitamente
 - Descarte do agente com `try/finally` em vez de `await using`, não suportado no Node 22
+- Ferramentas `wikipedia_search` e `wikipedia_page` usando a API oficial da Wikipedia,
+  que não bloqueia por volume como os buscadores gerais
+- Retry com backoff exponencial na busca web, com endpoint alternativo
+
+### Fixed
+- Busca web derrubava a questão inteira ao receber 403 por volume de consultas
+- Fallback de modelo passa a cobrir também runs que terminam em erro, não só respostas vazias
