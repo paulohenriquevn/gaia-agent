@@ -40,7 +40,21 @@ export class RateLimiter {
   }
 }
 
-/** Limitador por host de busca: o padrão respeita 1 consulta por segundo. */
-export const searchLimiter = new RateLimiter(
-  Number.parseInt(process.env.SEARCH_MIN_INTERVAL_MS ?? "1100", 10) || 1100,
-);
+/**
+ * Limitador compartilhado da busca.
+ *
+ * É module-level de propósito: o espaçamento só funciona se todas as questões passarem
+ * pelo MESMO limitador — uma instância por questão não coordenaria nada. O intervalo é
+ * configurado uma vez, na inicialização, em vez de lido do ambiente aqui dentro.
+ */
+let searchLimiterInstance = new RateLimiter(1100);
+
+export function configureSearchLimiter(minIntervalMs: number): void {
+  searchLimiterInstance = new RateLimiter(minIntervalMs);
+}
+
+export const searchLimiter = {
+  run<T>(operation: () => Promise<T>): Promise<T> {
+    return searchLimiterInstance.run(operation);
+  },
+};

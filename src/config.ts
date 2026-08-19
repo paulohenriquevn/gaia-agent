@@ -18,6 +18,14 @@ export interface AppConfig extends AgentConfig {
   concurrency: number;
   /** Porta do servidor web. */
   port: number;
+  /** Teto de gasto por hora, em dólares. Zero desliga o controle. */
+  budgetLimitUsd: number;
+  /** Arquivo onde a rodada grava e de onde a submissão lê. */
+  outputPath: string;
+  /** Segredo que autoriza `/run`. Vazio ⇒ servidor somente-leitura. */
+  runToken: string;
+  /** Espaçamento mínimo entre consultas de busca, em ms. */
+  searchMinIntervalMs: number;
 }
 
 function required(name: string): string {
@@ -32,6 +40,17 @@ function required(name: string): string {
 
 function optional(name: string, fallback: string): string {
   return process.env[name]?.trim() || fallback;
+}
+
+/** Número não-negativo opcional; zero significa desligado. */
+function optionalUsd(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const value = Number.parseFloat(raw);
+  if (!Number.isFinite(value) || value < 0) {
+    throw new ConfigError(`${name} precisa ser um número não-negativo, recebi "${raw}".`);
+  }
+  return value;
 }
 
 function positiveInt(name: string, fallback: number): number {
@@ -87,5 +106,9 @@ export function loadConfig(): AppConfig {
     // Validada aqui como todo o resto: antes era lida direto em server.ts e um valor
     // inválido virava NaN dentro de `server.listen`.
     port: positiveInt("PORT", 7860),
+    budgetLimitUsd: optionalUsd("BUDGET_LIMIT_USD", 5),
+    outputPath: optional("OUTPUT_PATH", "answers.json"),
+    runToken: optional("RUN_TOKEN", ""),
+    searchMinIntervalMs: positiveInt("SEARCH_MIN_INTERVAL_MS", 1100),
   };
 }

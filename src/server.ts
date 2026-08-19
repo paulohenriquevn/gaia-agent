@@ -24,7 +24,7 @@ const api = new ScoringApi();
  * ficar aberto a quem alcançar a URL. Sem o segredo configurado o servidor sobe em modo
  * somente-leitura, que é o comportamento seguro por omissão.
  */
-const RUN_TOKEN = process.env.RUN_TOKEN?.trim();
+const RUN_TOKEN = config.runToken;
 
 let running = false;
 

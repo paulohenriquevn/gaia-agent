@@ -11,7 +11,7 @@ const config = loadConfig();
 if (!config.username) throw new ConfigError("HF_USERNAME é obrigatório para submeter.");
 if (!config.agentCodeUrl) throw new ConfigError("AGENT_CODE_URL é obrigatório para submeter.");
 
-const inputPath = process.env.OUTPUT_PATH ?? "answers.json";
+const inputPath = config.outputPath;
 const outcomes = JSON.parse(readFileSync(inputPath, "utf8")) as QuestionOutcome[];
 
 const result = await new ScoringApi().submit({

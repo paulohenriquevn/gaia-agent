@@ -9,9 +9,17 @@ import { ScoringApi } from "../scoring-api.ts";
 import { answerAll } from "../runner.ts";
 import { probeSources, searchProviderName } from "../agent.ts";
 import { describeHealth } from "../lib/health.ts";
+import { createRunBudget } from "../lib/budget.ts";
+import { configureSearchLimiter } from "../lib/rate-limiter.ts";
 
 const config = loadConfig();
 const api = new ScoringApi();
+
+// O teto é criado ANTES da primeira chamada: em modo block ele recusa a requisição
+// antes de emiti-la, então protege de verdade em vez de avisar depois do gasto.
+configureSearchLimiter(config.searchMinIntervalMs);
+const budget = createRunBudget({ limitUsd: config.budgetLimitUsd, mode: "block" });
+if (budget) console.log(`Teto de gasto: US$ ${config.budgetLimitUsd.toFixed(2)}/hora`);
 
 const questions = await api.fetchQuestions();
 const health = await probeSources();
@@ -24,7 +32,7 @@ const outcomes = await answerAll(questions, api, { ...config, health }, config.c
   console.log(`[${String(done).padStart(2)}/${total}] ${outcome.task_id.slice(0, 8)} (${seconds}s) ${status}`);
 });
 
-const outputPath = process.env.OUTPUT_PATH ?? "answers.json";
+const outputPath = config.outputPath;
 writeFileSync(outputPath, JSON.stringify(outcomes, null, 2));
 
 const failed = outcomes.filter((outcome) => outcome.error).length;

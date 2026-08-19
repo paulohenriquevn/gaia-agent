@@ -28,7 +28,6 @@ if (answerPaths.length === 0) answerPaths.push("answers.json");
 
 // Primeiro arquivo tem precedência; os seguintes só preenchem lacunas.
 const answers = new Map<string, string>();
-const sourceOf = new Map<string, string>();
 
 for (const path of answerPaths) {
   const outcomes = JSON.parse(readFileSync(path, "utf8")) as QuestionOutcome[];
@@ -36,7 +35,6 @@ for (const path of answerPaths) {
     const current = answers.get(outcome.task_id);
     if (current === undefined || (current === "" && outcome.answer !== "")) {
       answers.set(outcome.task_id, outcome.answer);
-      sourceOf.set(outcome.task_id, path);
     }
   }
 }
