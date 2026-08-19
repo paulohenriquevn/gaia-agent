@@ -5,6 +5,8 @@
  * texto passando por um modelo perceptivo.
  */
 
+import { request } from "./http.ts";
+
 const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
 export class OpenRouterError extends Error {
@@ -25,7 +27,7 @@ type ContentPart =
   | { type: "input_audio"; input_audio: { data: string; format: string } };
 
 async function complete(model: string, parts: ContentPart[], apiKey: string): Promise<string> {
-  const response = await fetch(ENDPOINT, {
+  const response = await request(ENDPOINT, {
     method: "POST",
     headers: {
       authorization: `Bearer ${apiKey}`,
@@ -37,6 +39,9 @@ async function complete(model: string, parts: ContentPart[], apiKey: string): Pr
       messages: [{ role: "user", content: parts }],
       temperature: 0,
     }),
+    trustedHost: true,
+    // Percepção multimodal é lenta: imagem e áudio levam mais que uma consulta de texto.
+    timeoutMs: 120_000,
   });
 
   const body = await response.text();

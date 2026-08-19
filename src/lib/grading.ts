@@ -13,6 +13,8 @@
  * servida ao modelo em toda pergunta.
  */
 
+import { TRAILING_PUNCTUATION } from "./answer.ts";
+
 export interface GradedItem {
   taskId: string;
   submitted: string;
@@ -35,10 +37,13 @@ export interface GradeReport {
  * ignora: caixa, espaço redundante, pontuação final e espaçamento de listas.
  */
 export function normalizeForGrading(value: string): string {
-  return String(value)
+  // Reusa a pontuação de `answer.ts` de propósito: são o mesmo conhecimento, e mantê-los
+  // separados fez as duas divergirem — a medição aceitava um final que a submissão não
+  // limpava, e o score estimado saía otimista.
+  return value
     .trim()
     .toLowerCase()
-    .replace(/[.。!?]+$/, "")
+    .replace(TRAILING_PUNCTUATION, "")
     .replace(/\s*,\s*/g, ", ")
     .replace(/\s{2,}/g, " ")
     .trim();

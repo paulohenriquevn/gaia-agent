@@ -5,6 +5,7 @@ import { resilient } from "../lib/resilient-tool.ts";
 import * as cheerio from "cheerio";
 import { htmlToText, truncate } from "../lib/html-text.ts";
 import { withRetry } from "../lib/retry.ts";
+import { request } from "../lib/http.ts";
 
 const USER_AGENT =
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36";
@@ -33,7 +34,7 @@ export class SearchRateLimitedError extends Error {
 }
 
 async function requestSearch(endpoint: string, query: string): Promise<string> {
-  const response = await fetch(endpoint, {
+  const response = await request(endpoint, {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
@@ -42,6 +43,9 @@ async function requestSearch(endpoint: string, query: string): Promise<string> {
       "accept-language": "en-US,en;q=0.9",
     },
     body: new URLSearchParams({ q: query }).toString(),
+    // Endpoint fixo definido em código, não escolhido pelo modelo.
+    trustedHost: true,
+    timeoutMs: 20_000,
   });
 
   if (response.status === 403 || response.status === 429 || response.status >= 500) {
@@ -73,6 +77,9 @@ export async function searchWeb(query: string, maxResults: number): Promise<Sear
       });
       const hits = parseDuckDuckGoHtml(html, maxResults);
       if (hits.length > 0) return hits;
+      // Endpoint respondeu, apenas sem resultados: a falha anterior deixa de valer,
+      // senão um erro obsoleto seria relatado no lugar de "nenhum resultado".
+      lastError = undefined;
     } catch (error) {
       lastError = error;
     }
@@ -108,13 +115,23 @@ export function unwrapDuckDuckGoRedirect(href: string): string | null {
   if (!href) return null;
   const absolute = href.startsWith("//") ? `https:${href}` : href;
   if (!absolute.includes("/l/?")) return absolute.startsWith("http") ? absolute : null;
-  const encoded = new URL(absolute).searchParams.get("uddg");
-  return encoded ? decodeURIComponent(encoded) : null;
+
+  try {
+    // `new URL` exige base para href relativo; sem o try, um `/l/?uddg=…` derrubava a
+    // extração inteira dos resultados por causa de um único link malformado.
+    const encoded = new URL(absolute, "https://duckduckgo.com").searchParams.get("uddg");
+    return encoded ? decodeURIComponent(encoded) : null;
+  } catch {
+    return null;
+  }
 }
 
-/** Baixa uma página e devolve seu texto legível. */
+/**
+ * Baixa uma página e devolve seu texto legível.
+ * A URL vem do modelo, então passa pela triagem de SSRF da fronteira HTTP.
+ */
 export async function fetchPageText(url: string, maxChars: number): Promise<string> {
-  const response = await fetch(url, { headers: { "user-agent": USER_AGENT } });
+  const response = await request(url, { headers: { "user-agent": USER_AGENT } });
   if (!response.ok) {
     throw new Error(`${url} respondeu ${response.status}`);
   }

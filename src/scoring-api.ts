@@ -3,6 +3,8 @@
  * Documentação viva: https://agents-course-unit4-scoring.hf.space/docs
  */
 
+import { request as httpRequest } from "./lib/http.ts";
+
 const DEFAULT_BASE_URL = "https://agents-course-unit4-scoring.hf.space";
 
 export interface GaiaQuestion {
@@ -67,7 +69,7 @@ export class ScoringApi {
   /** Baixa o anexo de uma questão como bytes crus. */
   async fetchTaskFile(taskId: string): Promise<{ bytes: Uint8Array; contentType: string }> {
     const route = `/files/${taskId}`;
-    const response = await fetch(`${this.baseUrl}${route}`);
+    const response = await httpRequest(`${this.baseUrl}${route}`, { trustedHost: true, timeoutMs: 60_000 });
     if (!response.ok) {
       throw new ScoringApiError(route, response.status, await response.text());
     }
@@ -78,12 +80,14 @@ export class ScoringApi {
   }
 
   /** Envia as respostas para pontuação. Atualiza o leaderboard do curso. */
-  async submit(request: SubmissionRequest): Promise<SubmissionResult> {
+  async submit(submission: SubmissionRequest): Promise<SubmissionResult> {
     const route = "/submit";
-    const response = await fetch(`${this.baseUrl}${route}`, {
+    const response = await httpRequest(`${this.baseUrl}${route}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(request),
+      body: JSON.stringify(submission),
+      trustedHost: true,
+      timeoutMs: 120_000,
     });
     const body = await response.text();
     if (!response.ok) {
@@ -93,7 +97,7 @@ export class ScoringApi {
   }
 
   private async getJson<T>(route: string): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${route}`);
+    const response = await httpRequest(`${this.baseUrl}${route}`, { trustedHost: true, timeoutMs: 60_000 });
     const body = await response.text();
     if (!response.ok) {
       throw new ScoringApiError(route, response.status, body);

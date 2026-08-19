@@ -6,14 +6,30 @@
  * o <x> e remove o prefixo, porque o curso exige que o texto submetido não o contenha.
  */
 
-const FINAL_ANSWER_PATTERN = /final\s*answer\s*:?\s*(.*)/is;
+/**
+ * Pontuação final descartável.
+ *
+ * Compartilhada com a correção local (`grading.ts`): quando as duas divergiam, uma
+ * resposta terminando em "!" era contada como acerto na medição e recusada pelo scorer
+ * real, inflando o score estimado sem que nada acusasse.
+ */
+export const TRAILING_PUNCTUATION = /[.。!?！？]+$/;
+
+const FINAL_ANSWER_PATTERN_GLOBAL = /final\s*answer\s*:?[ \t]*(.*)/gi;
+const WORKING_ANSWER_PATTERN_GLOBAL = /working\s*answer\s*:?[ \t]*(.*)/gi;
+
+/** Último grupo capturado por um padrão global, ou `undefined` se não houver nenhum. */
+function lastMatch(text: string, pattern: RegExp): string | undefined {
+  const matches = [...text.matchAll(pattern)];
+  return matches.length > 0 ? matches[matches.length - 1][1] : undefined;
+}
 
 /**
  * Rascunho que o agente escreve ANTES de pesquisar. Serve de rede: quando o run é
  * interrompido no meio da investigação, esta linha costuma ser tudo o que sobrou —
  * e um rascunho plausível vale mais que resposta vazia, que erra sempre.
  */
-const WORKING_ANSWER_PATTERN = /working\s*answer\s*:?\s*(.*)/i;
+
 
 /**
  * Extrai a resposta final do texto bruto do agente.
@@ -21,8 +37,11 @@ const WORKING_ANSWER_PATTERN = /working\s*answer\s*:?\s*(.*)/i;
  * submeter um parágrafo inteiro, que erra o exact match com certeza.
  */
 export function extractFinalAnswer(rawOutput: string): string {
-  const finalMatch = rawOutput.match(FINAL_ANSWER_PATTERN);
-  if (finalMatch) return normalizeAnswer(finalMatch[1]);
+  // O ÚLTIMO marcador vence. O texto reúne todas as mensagens do agente, e um modelo
+  // que se corrige escreve o marcador mais de uma vez: pegar o primeiro submete o
+  // rascunho que ele próprio descartou.
+  const finalMatch = lastMatch(rawOutput, FINAL_ANSWER_PATTERN_GLOBAL);
+  if (finalMatch !== undefined) return normalizeAnswer(finalMatch);
 
   const working = extractWorkingAnswer(rawOutput);
   if (working !== "") return working;
@@ -35,10 +54,10 @@ export function extractFinalAnswer(rawOutput: string): string {
  * ou quando o agente declarou não saber — "unknown" não é uma resposta.
  */
 export function extractWorkingAnswer(rawOutput: string): string {
-  const match = rawOutput.match(WORKING_ANSWER_PATTERN);
-  if (!match) return "";
+  const match = lastMatch(rawOutput, WORKING_ANSWER_PATTERN_GLOBAL);
+  if (match === undefined) return "";
 
-  const candidate = normalizeAnswer(match[1]);
+  const candidate = normalizeAnswer(match);
   return /^(unknown|desconhecido|n\/a|none)$/i.test(candidate) ? "" : candidate;
 }
 
@@ -56,7 +75,7 @@ export function normalizeAnswer(answer: string): string {
 
   normalized = normalized.replace(/\*\*/g, "").replace(/^`+|`+$/g, "").trim();
   normalized = stripWrappingQuotes(normalized);
-  normalized = normalized.replace(/[.。]+$/, "").trim();
+  normalized = normalized.replace(TRAILING_PUNCTUATION, "").trim();
   normalized = normalized.replace(/\s*,\s*/g, ", ").replace(/\s{2,}/g, " ");
 
   return normalized;

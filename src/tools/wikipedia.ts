@@ -2,6 +2,7 @@ import { z } from "zod";
 import { Tool } from "@theokit/sdk";
 import { htmlToText, truncate } from "../lib/html-text.ts";
 import { withRetry } from "../lib/retry.ts";
+import { request } from "../lib/http.ts";
 import { resilient } from "../lib/resilient-tool.ts";
 
 /**
@@ -30,7 +31,11 @@ async function callApi(params: Record<string, string>): Promise<WikipediaApiResp
 
   return withRetry(
     async () => {
-      const response = await fetch(url, { headers: { "user-agent": USER_AGENT } });
+      const response = await request(url.toString(), {
+        headers: { "user-agent": USER_AGENT },
+        trustedHost: true,
+        timeoutMs: 25_000,
+      });
       if (!response.ok) {
         throw new Error(`API da Wikipedia respondeu ${response.status}`);
       }

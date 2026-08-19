@@ -90,3 +90,33 @@ describe("extractFinalAnswer com rascunho", () => {
     assert.equal(extractFinalAnswer("WORKING ANSWER: unknown\nNf6"), "Nf6");
   });
 });
+
+describe("extractFinalAnswer com marcador repetido", () => {
+  it("usa o ULTIMO marcador, nao o primeiro", () => {
+    const raw = "FINAL ANSWER: 3\n\nWait, recomputing.\n\nFINAL ANSWER: 7";
+    assert.equal(extractFinalAnswer(raw), "7");
+  });
+
+  it("usa o ultimo rascunho quando o agente revisa antes de concluir", async () => {
+    const { extractWorkingAnswer } = await import("../src/lib/answer.ts");
+    assert.equal(extractWorkingAnswer("WORKING ANSWER: Lisbon\nWORKING ANSWER: Porto"), "Porto");
+  });
+
+  it("marcador final vence rascunho mesmo com ambos repetidos", () => {
+    const raw = "WORKING ANSWER: a\nFINAL ANSWER: b\nWORKING ANSWER: c\nFINAL ANSWER: d";
+    assert.equal(extractFinalAnswer(raw), "d");
+  });
+});
+
+describe("normalizacao compartilhada com a correcao", () => {
+  it("submissao e medicao tratam a pontuacao final da mesma forma", async () => {
+    const { normalizeForGrading } = await import("../src/lib/grading.ts");
+    for (const value of ["Nf6!", "Ferdinand?", "3.", "Buenos Aires。"]) {
+      assert.equal(
+        normalizeAnswer(value).toLowerCase(),
+        normalizeForGrading(value),
+        `divergencia em ${JSON.stringify(value)} — mede diferente do que submete`,
+      );
+    }
+  });
+});
