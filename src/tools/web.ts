@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { Tool } from "@theokit/sdk";
+import { createWebSearchTool } from "@theokit/sdk-tools";
+import { resilient } from "../lib/resilient-tool.ts";
 import * as cheerio from "cheerio";
 import { htmlToText, truncate } from "../lib/html-text.ts";
 import { withRetry } from "../lib/retry.ts";
@@ -122,21 +124,16 @@ export async function fetchPageText(url: string, maxChars: number): Promise<stri
   return truncate(text, maxChars);
 }
 
-export const webSearchTool = Tool.create({
-  name: "web_search",
+/**
+ * `web_search` vem de `@theokit/sdk-tools`: a ferramenta é agnóstica de provedor e
+ * devolve `{ ok: false, error }` quando o backend falha, em vez de lançar e derrubar
+ * o run. O backend abaixo é injetado por DIP.
+ */
+export const webSearchTool = createWebSearchTool({
   description:
-    "Busca na web e devolve título, URL e trecho dos melhores resultados. Use para descobrir QUAIS páginas ler; depois use fetch_page para ler o conteúdo completo.",
-  inputSchema: z.object({
-    query: z.string().min(1).describe("Termos de busca"),
-    max_results: z.number().int().min(1).max(10).default(5),
-  }),
-  handler: async ({ query, max_results }) => {
-    const hits = await searchWeb(query, max_results);
-    if (hits.length === 0) return `Nenhum resultado para "${query}". Tente outros termos.`;
-    return hits
-      .map((hit, index) => `${index + 1}. ${hit.title}\n   ${hit.url}\n   ${hit.snippet}`)
-      .join("\n\n");
-  },
+    "Busca na web e devolve título, URL e trecho dos melhores resultados. Use para descobrir QUAIS páginas ler; depois use fetch_page. Para assuntos cobertos pela Wikipedia, prefira wikipedia_search, que é mais confiável.",
+  search: (query, maxResults) => searchWeb(query, maxResults),
+  defaultMaxResults: 5,
 });
 
 export const fetchPageTool = Tool.create({
@@ -147,5 +144,9 @@ export const fetchPageTool = Tool.create({
     url: z.string().url(),
     max_chars: z.number().int().min(1000).max(120000).default(40000),
   }),
-  handler: async ({ url, max_chars }) => fetchPageText(url, max_chars),
+  handler: resilient(
+    "fetch_page",
+    "Confirme a URL nos resultados de busca, ou tente outra fonte para o mesmo fato.",
+    ({ url, max_chars }: { url: string; max_chars: number }) => fetchPageText(url, max_chars),
+  ),
 });

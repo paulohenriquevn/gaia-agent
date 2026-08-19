@@ -2,6 +2,7 @@ import { z } from "zod";
 import { Tool } from "@theokit/sdk";
 import { YoutubeTranscript } from "youtube-transcript";
 import { truncate } from "../lib/html-text.ts";
+import { resilient } from "../lib/resilient-tool.ts";
 
 /** Extrai o id de 11 caracteres de qualquer forma de URL do YouTube. */
 export function extractVideoId(urlOrId: string): string {
@@ -18,7 +19,10 @@ export const youtubeTranscriptTool = Tool.create({
   inputSchema: z.object({
     url: z.string().min(1).describe("URL do vídeo ou o id de 11 caracteres"),
   }),
-  handler: async ({ url }) => {
+  handler: resilient(
+    "youtube_transcript",
+    "O vídeo pode não ter legendas. Procure uma transcrição ou descrição do vídeo com web_search.",
+    async ({ url }: { url: string }) => {
     const videoId = extractVideoId(url);
     const segments = await YoutubeTranscript.fetchTranscript(videoId);
     if (segments.length === 0) return "O vídeo não tem legendas disponíveis.";
@@ -26,7 +30,7 @@ export const youtubeTranscriptTool = Tool.create({
       .map((segment) => `[${formatTimestamp(segment.offset)}] ${decodeEntities(segment.text)}`)
       .join("\n");
     return truncate(transcript, 40000);
-  },
+  }),
 });
 
 function formatTimestamp(offsetMs: number): string {

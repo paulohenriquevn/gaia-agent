@@ -7,14 +7,18 @@ import { writeFileSync } from "node:fs";
 import { loadConfig } from "../config.ts";
 import { ScoringApi } from "../scoring-api.ts";
 import { answerAll } from "../runner.ts";
+import { probeSources } from "../agent.ts";
+import { describeHealth } from "../lib/health.ts";
 
 const config = loadConfig();
 const api = new ScoringApi();
 
 const questions = await api.fetchQuestions();
+const health = await probeSources();
+console.log(`Fontes -> ${describeHealth(health)}`);
 console.log(`Respondendo ${questions.length} questões com ${config.modelId} (concorrência ${config.concurrency})\n`);
 
-const outcomes = await answerAll(questions, api, config, config.concurrency, (outcome, done, total) => {
+const outcomes = await answerAll(questions, api, { ...config, health }, config.concurrency, (outcome, done, total) => {
   const status = outcome.error ? `ERRO: ${outcome.error.slice(0, 80)}` : `→ ${outcome.answer}`;
   const seconds = (outcome.durationMs / 1000).toFixed(0);
   console.log(`[${String(done).padStart(2)}/${total}] ${outcome.task_id.slice(0, 8)} (${seconds}s) ${status}`);

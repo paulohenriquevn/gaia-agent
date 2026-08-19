@@ -2,10 +2,11 @@ import { Agent } from "@theokit/sdk";
 import { ScoringApi, type GaiaQuestion } from "./scoring-api.ts";
 import { extractFinalAnswer } from "./lib/answer.ts";
 import { FatalRunError, classifyRunFailure } from "./lib/agent-errors.ts";
-import { fetchPageTool, webSearchTool } from "./tools/web.ts";
+import { fetchPageTool, webSearchTool, searchWeb } from "./tools/web.ts";
 import { runPythonTool } from "./tools/python.ts";
 import { youtubeTranscriptTool } from "./tools/youtube.ts";
-import { wikipediaPageTool, wikipediaSearchTool } from "./tools/wikipedia.ts";
+import { wikipediaPageTool, wikipediaSearchTool, searchWikipedia } from "./tools/wikipedia.ts";
+import { checkSources, healthGuidance, type SourceHealth } from "./lib/health.ts";
 import { createReadTaskFileTool } from "./tools/task-files.ts";
 import {
   createDescribeImageTool,
@@ -55,6 +56,18 @@ export interface AgentConfig {
   openRouterApiKey: string;
   /** Diretório de trabalho do runtime local do SDK. */
   cwd: string;
+  /** Teto de rodadas de ferramenta por questão. O padrão do SDK, 8, é baixo demais aqui. */
+  maxIterations: number;
+  /** Fontes disponíveis nesta rodada. Ausente ⇒ todas as ferramentas são registradas. */
+  health?: SourceHealth;
+}
+
+/** Sonda as fontes externas uma vez, para a rodada inteira. */
+export function probeSources() {
+  return checkSources({
+    webSearch: () => searchWeb("wikipedia", 1),
+    wikipedia: () => searchWikipedia("Wikipedia", 1),
+  });
 }
 
 /** Índice task_id -> nome do anexo, para as ferramentas resolverem arquivos sem adivinhar. */
@@ -72,6 +85,8 @@ export interface QuestionAnswer {
   durationMs: number;
   /** Modelo que efetivamente produziu a resposta. */
   modelUsed: string;
+  /** O run parou no teto de iterações com o modelo ainda querendo usar ferramentas. */
+  truncated?: boolean;
 }
 
 /**
@@ -144,12 +159,13 @@ async function runWithModel(
     // direto com o provider.
     apiKey: config.openRouterApiKey,
     model: { id: modelId },
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt: SYSTEM_PROMPT + (config.health ? healthGuidance(config.health) : ""),
     local: { cwd: config.cwd, settingSources: [] },
+    // Ferramenta de fonte comprovadamente fora não é registrada: oferecê-la só
+    // convida o agente a gastar iterações numa porta fechada.
     tools: [
-      wikipediaSearchTool,
-      wikipediaPageTool,
-      webSearchTool,
+      ...(config.health?.wikipedia === false ? [] : [wikipediaSearchTool, wikipediaPageTool]),
+      ...(config.health?.webSearch === false ? [] : [webSearchTool]),
       fetchPageTool,
       runPythonTool,
       youtubeTranscriptTool,
@@ -164,7 +180,12 @@ async function runWithModel(
       ? `\n\nThis question has an attached file named "${question.file_name}". Its task_id is "${question.task_id}" — pass that task_id to the file tools.`
       : "";
 
-    const run = await agent.send(`${question.question}${attachmentNote}`);
+    // O teto padrão do loop é 8 iterações, e uma questão do GAIA gasta isso só
+    // localizando a fonte: ao estourar, o run é truncado e termina sem resposta.
+    // Era essa a causa por trás dos erros "sem detalhe" nas questões de pesquisa.
+    const run = await agent.send(`${question.question}${attachmentNote}`, {
+      maxIterations: config.maxIterations,
+    });
 
     // O stream é consumido em vez de só aguardar o run: quando o provider recusa a
     // chamada, `result.result` vem vazio e a razão só aparece no evento de status.
@@ -188,12 +209,15 @@ async function runWithModel(
       throw classifyRunFailure(question.task_id, failureDetail ?? "sem detalhe do provider");
     }
 
+    // Um run truncado no teto de iterações ainda pode ter dito a resposta antes de
+    // parar; o texto colhido do stream é aproveitado em vez de descartado.
     const rawOutput = result.result ?? assistantTexts.join("\n");
     return {
       answer: extractFinalAnswer(rawOutput),
       rawOutput,
       durationMs: result.durationMs ?? 0,
       modelUsed: modelId,
+      truncated: result.stoppedAtIterationLimit === true,
     };
   } finally {
     await agent[Symbol.asyncDispose]();

@@ -2,6 +2,7 @@ import { z } from "zod";
 import { Tool } from "@theokit/sdk";
 import { htmlToText, truncate } from "../lib/html-text.ts";
 import { withRetry } from "../lib/retry.ts";
+import { resilient } from "../lib/resilient-tool.ts";
 
 /**
  * Acesso à Wikipedia pela API oficial (`api.php`).
@@ -83,11 +84,15 @@ export const wikipediaSearchTool = Tool.create({
     query: z.string().min(1),
     limit: z.number().int().min(1).max(10).default(5),
   }),
-  handler: async ({ query, limit }) => {
-    const hits = await searchWikipedia(query, limit);
-    if (hits.length === 0) return `Nenhum artigo encontrado para "${query}".`;
-    return hits.map((hit, index) => `${index + 1}. ${hit.title}\n   ${hit.snippet}`).join("\n\n");
-  },
+  handler: resilient(
+    "wikipedia_search",
+    "Tente termos diferentes, ou use web_search se o assunto não estiver na Wikipedia.",
+    async ({ query, limit }: { query: string; limit: number }) => {
+      const hits = await searchWikipedia(query, limit);
+      if (hits.length === 0) return `Nenhum artigo encontrado para "${query}".`;
+      return hits.map((hit, index) => `${index + 1}. ${hit.title}\n   ${hit.snippet}`).join("\n\n");
+    },
+  ),
 });
 
 export const wikipediaPageTool = Tool.create({
@@ -98,5 +103,10 @@ export const wikipediaPageTool = Tool.create({
     title: z.string().min(1).describe("Título exato do artigo, ex: 'Mercedes Sosa'"),
     max_chars: z.number().int().min(1000).max(150000).default(60000),
   }),
-  handler: async ({ title, max_chars }) => truncate(await fetchWikipediaPage(title), max_chars),
+  handler: resilient(
+    "wikipedia_page",
+    "Confirme o título exato com wikipedia_search antes de tentar de novo.",
+    async ({ title, max_chars }: { title: string; max_chars: number }) =>
+      truncate(await fetchWikipediaPage(title), max_chars),
+  ),
 });

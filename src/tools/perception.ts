@@ -3,6 +3,7 @@ import { Tool } from "@theokit/sdk";
 import { ScoringApi } from "../scoring-api.ts";
 import { analyzeAudio, describeImage } from "../lib/openrouter.ts";
 import { extensionOf } from "./task-files.ts";
+import { resilient } from "../lib/resilient-tool.ts";
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   png: "image/png",
@@ -34,7 +35,10 @@ export function createDescribeImageTool(
         .min(1)
         .describe("O que examinar na imagem, ex: 'Descreva a posição de cada peça no tabuleiro'"),
     }),
-    handler: async ({ task_id, question }) => {
+    handler: resilient(
+      "describe_image",
+      "A imagem pode estar indisponível no servidor. Responda pelo enunciado, ou busque a informação em outra fonte.",
+      async ({ task_id, question }: { task_id: string; question: string }) => {
       const fileName = fileNameByTaskId.get(task_id);
       if (!fileName) throw new Error(`A questão ${task_id} não tem arquivo anexado.`);
 
@@ -50,7 +54,7 @@ export function createDescribeImageTool(
         mimeType,
         question,
       });
-    },
+    }),
   });
 }
 
@@ -70,7 +74,10 @@ export function createTranscribeAudioTool(
         .min(1)
         .default("Transcreva este áudio literalmente, palavra por palavra."),
     }),
-    handler: async ({ task_id, question }) => {
+    handler: resilient(
+      "transcribe_audio",
+      "O áudio pode estar indisponível no servidor. Responda pelo enunciado, ou busque a informação em outra fonte.",
+      async ({ task_id, question }: { task_id: string; question: string }) => {
       const fileName = fileNameByTaskId.get(task_id);
       if (!fileName) throw new Error(`A questão ${task_id} não tem arquivo anexado.`);
 
@@ -87,6 +94,6 @@ export function createTranscribeAudioTool(
         format,
         question,
       });
-    },
+    }),
   });
 }

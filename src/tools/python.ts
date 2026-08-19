@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { z } from "zod";
 import { Tool } from "@theokit/sdk";
 import { truncate } from "../lib/html-text.ts";
+import { resilient } from "../lib/resilient-tool.ts";
 
 export interface PythonResult {
   exitCode: number | null;
@@ -59,6 +60,10 @@ export const runPythonTool = Tool.create({
     code: z.string().min(1).describe("Código Python completo, incluindo os print() do resultado"),
     timeout_seconds: z.number().int().min(1).max(120).default(30),
   }),
-  handler: async ({ code, timeout_seconds }) =>
-    formatPythonResult(await runPython(code, timeout_seconds * 1000)),
+  handler: resilient(
+    "run_python",
+    "Revise o código: erro de sintaxe, import indisponível ou laço sem fim.",
+    async ({ code, timeout_seconds }: { code: string; timeout_seconds: number }) =>
+      formatPythonResult(await runPython(code, timeout_seconds * 1000)),
+  ),
 });

@@ -39,3 +39,13 @@ Formato: [Keep a Changelog](https://keepachangelog.com/) · [Semantic Versioning
 ### Fixed
 - Causa real do erro do provider agora é capturada do evento de status; antes a
   mensagem se perdia e todo erro aparecia como "sem detalhe"
+- Teto de iterações por questão configurável (`MAX_ITERATIONS`, padrão 30); o padrão do
+  SDK é 8, insuficiente para uma questão de pesquisa
+- Verificação de disponibilidade das fontes no início da rodada: ferramenta de fonte
+  fora do ar não é oferecida ao agente
+- `web_search` passa a ser a ferramenta de `@theokit/sdk-tools`, com backend injetado
+
+### Fixed
+- Ferramenta que lançava exceção derrubava o run inteiro após poucas falhas; agora toda
+  ferramenta devolve o motivo da falha como texto e o agente escolhe outro caminho
+- Runs truncados no teto de iterações são sinalizados em vez de virarem resposta vazia

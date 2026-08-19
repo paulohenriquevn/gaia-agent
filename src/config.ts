@@ -76,6 +76,7 @@ export function loadConfig(): AppConfig {
     cwd: optional("AGENT_CWD", process.cwd()),
     username: optional("HF_USERNAME", spaceId ? usernameFromSpaceId(spaceId) : ""),
     agentCodeUrl: optional("AGENT_CODE_URL", spaceId ? agentCodeUrlFromSpaceId(spaceId) : ""),
+    maxIterations: positiveInt("MAX_ITERATIONS", 30),
     concurrency: positiveInt("CONCURRENCY", 3),
   };
 }

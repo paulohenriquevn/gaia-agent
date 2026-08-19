@@ -3,6 +3,7 @@ import { Tool } from "@theokit/sdk";
 import * as XLSX from "xlsx";
 import { ScoringApi } from "../scoring-api.ts";
 import { truncate } from "../lib/html-text.ts";
+import { resilient } from "../lib/resilient-tool.ts";
 
 const TEXT_EXTENSIONS = new Set(["py", "txt", "csv", "json", "md", "jsonl", "xml", "yaml", "yml"]);
 const SHEET_EXTENSIONS = new Set(["xlsx", "xls"]);
@@ -46,13 +47,17 @@ export function createReadTaskFileTool(api: ScoringApi, fileNameByTaskId: Map<st
     inputSchema: z.object({
       task_id: z.string().min(1).describe("O task_id da questão que tem o anexo"),
     }),
-    handler: async ({ task_id }) => {
-      const fileName = fileNameByTaskId.get(task_id);
-      if (!fileName) {
-        throw new Error(`A questão ${task_id} não tem arquivo anexado.`);
-      }
-      const { bytes } = await api.fetchTaskFile(task_id);
-      return truncate(decodeTaskFile(fileName, bytes), 60000);
-    },
+    handler: resilient(
+      "read_task_file",
+      "O anexo pode estar indisponível no servidor. Responda com o que a pergunta já fornece, ou procure a informação com wikipedia_search / web_search.",
+      async ({ task_id }: { task_id: string }) => {
+        const fileName = fileNameByTaskId.get(task_id);
+        if (!fileName) {
+          throw new Error(`A questão ${task_id} não tem arquivo anexado.`);
+        }
+        const { bytes } = await api.fetchTaskFile(task_id);
+        return truncate(decodeTaskFile(fileName, bytes), 60000);
+      },
+    ),
   });
 }
