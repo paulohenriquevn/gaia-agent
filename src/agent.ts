@@ -156,15 +156,44 @@ export async function answerQuestion(
   fileIndex: Map<string, string>,
   config: AgentConfig,
 ): Promise<QuestionAnswer> {
-  const primary = await attempt(question, api, fileIndex, config, config.modelId);
-  if (primary.answer) return primary;
+  // 1. Pesquisa com ferramentas: o caminho que produz as respostas verificadas.
+  const researched = await attempt(question, api, fileIndex, config, config.modelId);
+  if (researched.answer) return researched;
 
-  // O primário não produziu resposta — filtro de conteúdo, run interrompido, ou
-  // ferramenta que falhou repetidas vezes. Vale uma tentativa com outro modelo:
-  // desistir aqui custa a questão inteira.
+  // 2. Sem resposta. Antes de trocar de modelo, pergunta ao mesmo modelo sem
+  //    ferramenta nenhuma: alguns nunca concluem enquanto podem chamar ferramentas,
+  //    mas respondem de primeira quando não há nenhuma disponível.
+  const known = await attemptDirect(question, config, config.modelId);
+  if (known.answer) {
+    return { ...known, durationMs: researched.durationMs + known.durationMs };
+  }
+
+  // 3. Ainda nada: outro modelo, com ferramentas. Desistir aqui custa a questão.
   const fallback = await attempt(question, api, fileIndex, config, config.fallbackModelId);
-  const chosen = fallback.answer ? fallback : primary;
-  return { ...chosen, durationMs: primary.durationMs + fallback.durationMs };
+  const chosen = fallback.answer ? fallback : researched;
+  return {
+    ...chosen,
+    durationMs: researched.durationMs + known.durationMs + fallback.durationMs,
+  };
+}
+
+/** Tentativa sem ferramentas, com falha convertida em resposta vazia. */
+async function attemptDirect(
+  question: GaiaQuestion,
+  config: AgentConfig,
+  modelId: string,
+): Promise<QuestionAnswer> {
+  try {
+    return await answerFromKnowledge(question, config, modelId);
+  } catch (error) {
+    if (error instanceof FatalRunError) throw error;
+    return {
+      answer: "",
+      rawOutput: `[conhecimento direto falhou] ${error instanceof Error ? error.message : String(error)}`,
+      durationMs: 0,
+      modelUsed: modelId,
+    };
+  }
 }
 
 /**
@@ -272,21 +301,6 @@ async function runWithModel(
     const answer = extractFinalAnswer(rawOutput);
     const truncated = result.stoppedAtIterationLimit === true;
 
-    // Pesquisa esgotada sem conclusão: em vez de desistir, cobra a resposta com o que
-    // já foi lido. O contexto da investigação continua no agente, e uma questão
-    // respondida por inferência ainda pode acertar — vazia nunca acerta.
-    if (answer === "" && truncated) {
-      const forced = await forceAnswer(agent, question.task_id);
-      if (forced.answer !== "") {
-        return {
-          ...forced,
-          durationMs: (result.durationMs ?? 0) + forced.durationMs,
-          modelUsed: modelId,
-          truncated: true,
-        };
-      }
-    }
-
     return {
       answer,
       rawOutput,
@@ -300,29 +314,50 @@ async function runWithModel(
 }
 
 
-const FORCE_ANSWER_PROMPT = `Your research budget is exhausted. Do not call any more tools.
+const DIRECT_ANSWER_PROMPT = `Answer this question from your own knowledge. You have no tools and no way to look anything up, so give your single best answer.
 
-Answer now with the best value you can infer from what you already read, combined with
-what you know. Follow the answer format rules exactly: only the value, no explanation,
-no hedging, no mention of uncertainty.
+Reply with ONLY the value asked for — no explanation, no hedging, no mention of uncertainty. If you are unsure, still commit to your most likely answer: a guess can be right, and no answer never is.
 
-End with a single line: FINAL ANSWER: <the answer>`;
+End with a single line: FINAL ANSWER: <the answer>
+
+Question: `;
 
 /**
- * Cobra do agente uma resposta final sem novas ferramentas.
- * Falha aqui não invalida a questão: devolve resposta vazia e o chamador segue com o
- * que tinha, porque este passo é uma tentativa extra, não um requisito.
+ * Responde sem ferramenta alguma, num agente novo.
+ *
+ * Existe porque alguns modelos nunca emitem texto enquanto têm ferramentas
+ * disponíveis: entram no ciclo de chamadas e só param ao esgotar o orçamento, sem
+ * nunca concluir. O mesmo modelo, perguntado direto, responde na primeira tentativa.
+ *
+ * O agente é novo de propósito — o anterior chega aqui em estado de erro, e reusá-lo
+ * só propaga a falha.
  */
-async function forceAnswer(
-  agent: Awaited<ReturnType<typeof Agent.create>>,
-  taskId: string,
-): Promise<{ answer: string; rawOutput: string; durationMs: number }> {
+async function answerFromKnowledge(
+  question: GaiaQuestion,
+  config: AgentConfig,
+  modelId: string,
+): Promise<QuestionAnswer> {
+  const agent = await Agent.create({
+    apiKey: config.openRouterApiKey,
+    model: { id: modelId },
+    systemPrompt: SYSTEM_PROMPT,
+    local: { cwd: config.cwd, settingSources: [] },
+    tools: [],
+  });
+
   try {
-    const run = await agent.send(FORCE_ANSWER_PROMPT, { maxIterations: 1, tools: [] });
+    const run = await agent.send(`${DIRECT_ANSWER_PROMPT}${question.question}`, {
+      maxIterations: 1,
+    });
     const result = await run.wait();
     const rawOutput = result.result ?? "";
-    return { answer: extractFinalAnswer(rawOutput), rawOutput, durationMs: result.durationMs ?? 0 };
-  } catch {
-    return { answer: "", rawOutput: `[força-resposta falhou para ${taskId}]`, durationMs: 0 };
+    return {
+      answer: extractFinalAnswer(rawOutput),
+      rawOutput,
+      durationMs: result.durationMs ?? 0,
+      modelUsed: `${modelId} (sem ferramentas)`,
+    };
+  } finally {
+    await agent[Symbol.asyncDispose]();
   }
 }

@@ -8,3 +8,6 @@ modelo/
 answers*.json
 .theokit/
 eval*.log
+smoke*.log
+diag*.log
+diag.ts
