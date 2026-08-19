@@ -1,33 +1,36 @@
-/** Espera `ms` milissegundos. */
-export function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+import { Retry } from "@theokit/sdk/retry";
 
-/** Calcula o atraso da tentativa `attempt` (base 0) com backoff exponencial. */
-export function backoffDelay(attempt: number, baseMs: number): number {
-  return baseMs * 2 ** attempt;
+/**
+ * Repetição com backoff.
+ *
+ * Delega ao `Retry` do SDK em vez de reimplementar: a versão caseira daqui usava
+ * `baseMs * 2 ** tentativa` sem jitter nem teto, então três workers que tomavam o mesmo
+ * 403 voltavam a bater no endpoint exatamente no mesmo instante, em sincronia — o que a
+ * revisão apontou como mecanismo do bloqueio de busca observado. O SDK aplica jitter
+ * completo e limita cada espera.
+ */
+
+export interface RetryPolicy {
+  /** Tentativas APÓS a primeira. */
+  attempts: number;
+  baseDelayMs: number;
+  isRetryable: (error: unknown) => boolean;
 }
 
 /**
- * Repete `operation` com backoff exponencial enquanto `isRetryable` disser que vale.
- * Erros não-retentáveis sobem na primeira tentativa — retentar uma falha permanente
- * só gasta tempo e mascara a causa.
+ * Repete `operation` enquanto `isRetryable` disser que vale, com backoff e jitter.
+ * Erro não-retentável sobe na primeira tentativa: insistir numa falha permanente só
+ * gasta tempo e esconde a causa.
  */
-export async function withRetry<T>(
+export function withRetry<T>(
   operation: () => Promise<T>,
   options: { attempts: number; baseDelayMs: number; isRetryable: (error: unknown) => boolean },
 ): Promise<T> {
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt < options.attempts; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error;
-      if (!options.isRetryable(error) || attempt === options.attempts - 1) throw error;
-      await delay(backoffDelay(attempt, options.baseDelayMs));
-    }
-  }
-
-  throw lastError;
+  return Retry.create(operation, {
+    // `attempts` aqui sempre significou o total de tentativas; o SDK conta as repetições
+    // depois da primeira.
+    retries: Math.max(0, options.attempts - 1),
+    initialDelayMs: options.baseDelayMs,
+    isRetryable: options.isRetryable,
+  });
 }

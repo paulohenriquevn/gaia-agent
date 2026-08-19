@@ -1,5 +1,6 @@
 import { createBraveWebSearchAdapter, type WebSearchCallback } from "@theokit/sdk-tools";
 import { searchWeb } from "./web.ts";
+import { searchLimiter } from "../lib/rate-limiter.ts";
 
 /**
  * Escolha do backend de busca.
@@ -23,16 +24,19 @@ export function resolveSearchBackend(env: NodeJS.ProcessEnv = process.env): Sear
   const braveApiKey = env.BRAVE_API_KEY?.trim();
 
   if (braveApiKey) {
+    // O adapter valida a chave na criação e lança ConfigurationError sem ela —
+    // por isso só é construído quando a chave existe de fato.
+    const brave = createBraveWebSearchAdapter({ apiKey: braveApiKey });
     return {
-      // O adapter valida a chave na criação e lança ConfigurationError sem ela —
-      // por isso só é construído quando a chave existe de fato.
-      search: createBraveWebSearchAdapter({ apiKey: braveApiKey }),
+      // O plano gratuito do Brave permite 1 consulta por segundo; o limitador garante
+      // isso mesmo com várias questões pesquisando em paralelo.
+      search: (query, maxResults) => searchLimiter.run(() => brave(query, maxResults)),
       provider: "brave",
     };
   }
 
   return {
-    search: (query, maxResults) => searchWeb(query, maxResults),
+    search: (query, maxResults) => searchLimiter.run(() => searchWeb(query, maxResults)),
     provider: "duckduckgo",
   };
 }

@@ -16,6 +16,8 @@ export interface AppConfig extends AgentConfig {
   agentCodeUrl: string;
   /** Questões respondidas em paralelo. */
   concurrency: number;
+  /** Porta do servidor web. */
+  port: number;
 }
 
 function required(name: string): string {
@@ -82,5 +84,8 @@ export function loadConfig(): AppConfig {
     search: resolveSearchBackend().search,
     maxIterations: positiveInt("MAX_ITERATIONS", 30),
     concurrency: positiveInt("CONCURRENCY", 3),
+    // Validada aqui como todo o resto: antes era lida direto em server.ts e um valor
+    // inválido virava NaN dentro de `server.listen`.
+    port: positiveInt("PORT", 7860),
   };
 }

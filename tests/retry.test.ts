@@ -1,18 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { backoffDelay, withRetry } from "../src/lib/retry.ts";
+import { withRetry } from "../src/lib/retry.ts";
 
-describe("backoffDelay", () => {
-  it("dobra a cada tentativa", () => {
-    assert.equal(backoffDelay(0, 100), 100);
-    assert.equal(backoffDelay(1, 100), 200);
-    assert.equal(backoffDelay(2, 100), 400);
-  });
-});
+const always = () => true;
 
 describe("withRetry", () => {
-  const always = () => true;
-
   it("devolve o resultado sem retentar quando a primeira tentativa passa", async () => {
     let calls = 0;
     const result = await withRetry(async () => { calls++; return "ok"; },
@@ -50,5 +42,20 @@ describe("withRetry", () => {
       /falha 3/,
     );
     assert.equal(calls, 3);
+  });
+
+  it("aplica jitter: duas rajadas identicas nao esperam o mesmo tempo", async () => {
+    // O jitter e a razao de delegar ao SDK: sem ele, workers paralelos que tomam o mesmo
+    // bloqueio voltam a bater no endpoint em sincronia.
+    const durations: number[] = [];
+    for (let round = 0; round < 6; round++) {
+      const startedAt = Date.now();
+      try {
+        await withRetry(async () => { throw new Error("t"); },
+          { attempts: 3, baseDelayMs: 40, isRetryable: always });
+      } catch { /* esperado */ }
+      durations.push(Date.now() - startedAt);
+    }
+    assert.ok(new Set(durations).size > 1, `esperas identicas: ${durations.join(",")}`);
   });
 });

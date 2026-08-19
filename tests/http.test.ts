@@ -1,17 +1,19 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createServer, type Server } from "node:http";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { HttpTimeoutError, request } from "../src/lib/http.ts";
 import { fetchPageText, unwrapDuckDuckGoRedirect } from "../src/tools/web.ts";
 
-function listen(handler: Parameters<typeof createServer>[0], port: number): Promise<Server> {
+type Handler = (request: IncomingMessage, response: ServerResponse) => void;
+
+function listen(handler: Handler, port: number): Promise<Server> {
   const server = createServer(handler);
   return new Promise((resolve) => server.listen(port, "127.0.0.1", () => resolve(server)));
 }
 
 describe("fronteira HTTP — triagem de SSRF", () => {
   it("recusa loopback para URL escolhida pelo modelo", async () => {
-    const server = await listen((_q, r) => r.end("SEGREDO_INTERNO"), 8793);
+    const server = await listen((_request, response) => response.end("SEGREDO_INTERNO"), 8793);
     try {
       await assert.rejects(fetchPageText("http://127.0.0.1:8793/", 500), /Blocked request/);
     } finally {
@@ -27,7 +29,7 @@ describe("fronteira HTTP — triagem de SSRF", () => {
   });
 
   it("permite loopback quando o host e declarado confiavel no codigo", async () => {
-    const server = await listen((_q, r) => r.end("ok-confiavel"), 8794);
+    const server = await listen((_request, response) => response.end("ok-confiavel"), 8794);
     try {
       const response = await request("http://127.0.0.1:8794/", { trustedHost: true });
       assert.equal(await response.text(), "ok-confiavel");
