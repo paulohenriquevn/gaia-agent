@@ -8,9 +8,9 @@
  * foram geradas e gravadas, e nada deste módulo é importado pelo agente.
  *
  * Manter isso verdadeiro exige disciplina no resto do código: valores do gabarito não
- * podem virar exemplo de prompt nem fixture de teste. Uma revisão encontrou
- * "Saint Petersburg" — resposta de uma das questões — dentro do prompt de sistema,
- * servida ao modelo em toda pergunta.
+ * podem virar exemplo de prompt nem fixture de teste. Uma revisão encontrou um deles
+ * dentro do prompt de sistema, servido ao modelo em toda pergunta — inclusive na questão
+ * cuja resposta era exatamente aquele valor.
  */
 
 import { TRAILING_PUNCTUATION } from "./answer.ts";

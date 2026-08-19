@@ -5,9 +5,10 @@
  * frequência: ajustar a redação de uma regra de formato não deveria tocar o arquivo que
  * cria agentes e encadeia tentativas.
  *
- * REGRA INQUEBRÁVEL: nenhum exemplo aqui pode ser a resposta de uma questão do
- * benchmark. Uma revisão encontrou "Saint Petersburg" — gabarito de uma das questões —
- * usado como exemplo de formatação e servido ao modelo em toda pergunta.
+ * REGRA INQUEBRÁVEL: nenhum exemplo aqui pode coincidir com a resposta de uma questão do
+ * benchmark. Uma revisão encontrou um exemplo de formatação que era, por acaso, o
+ * gabarito de uma das questões — servido ao modelo em toda pergunta, inclusive naquela.
+ * Escolha exemplos sem relação com o conjunto avaliado.
  */
 
 export const SYSTEM_PROMPT = `You are a precise research assistant answering ONE question from the GAIA benchmark.
