@@ -2,6 +2,7 @@ import { Agent, type CustomTool } from "@theokit/sdk";
 import type { WebSearchCallback } from "@theokit/sdk-tools";
 import { DIRECT_ANSWER_PROMPT, SYSTEM_PROMPT } from "./prompts.ts";
 import { buildTools } from "./tools/registry.ts";
+import { createToolPermissionPlugin } from "./lib/tool-permissions.ts";
 import { failureReason, harvestStream, rawOutputOf } from "./lib/run-outcome.ts";
 import { ScoringApi, type GaiaQuestion } from "./scoring-api.ts";
 import { extractFinalAnswer } from "./lib/answer.ts";
@@ -93,6 +94,8 @@ async function createQuestionAgent(config: AgentConfig, modelId: string, tools: 
     systemPrompt: SYSTEM_PROMPT + (config.health ? healthGuidance(config.health) : ""),
     local: { cwd: config.cwd, settingSources: [] },
     tools,
+    // Nega as ferramentas que o runtime adiciona sozinho; ver tool-permissions.ts.
+    plugins: [createToolPermissionPlugin()],
   });
 }
 
@@ -177,6 +180,7 @@ async function answerFromKnowledge(
     systemPrompt: SYSTEM_PROMPT,
     local: { cwd: config.cwd, settingSources: [] },
     tools: [],
+    plugins: [createToolPermissionPlugin()],
   });
 
   try {

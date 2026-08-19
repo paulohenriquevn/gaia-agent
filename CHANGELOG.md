@@ -46,3 +46,6 @@ Formato: [Keep a Changelog](https://keepachangelog.com/) · [Semantic Versioning
 - Servidor deixa de ficar preso em 409 quando o cliente aborta a execução
 - Servidor passa a sondar as fontes, como os demais entrypoints
 - Falha fatal preserva as respostas já obtidas em vez de descartar a rodada inteira
+- Ferramentas de acesso irrestrito (`shell`, `memory_search`, `memory_get`) negadas via
+  `PermissionPlugin` do SDK: o runtime local as registra em todo agente, mesmo quando o
+  consumidor passa apenas ferramentas próprias
