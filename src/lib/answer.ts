@@ -61,8 +61,21 @@ export function extractWorkingAnswer(rawOutput: string): string {
   return /^(unknown|desconhecido|n\/a|none)$/i.test(candidate) ? "" : candidate;
 }
 
+/** Linha que é apenas um marcador do protocolo, não uma resposta. */
+const MARKER_LINE = /^\s*(final|working)\s*answer\s*:?/i;
+
+/**
+ * Última linha aproveitável, ignorando as linhas de marcador.
+ *
+ * Sem esse filtro a cadeia se voltava contra si: um rascunho "WORKING ANSWER: unknown"
+ * era corretamente recusado como resposta, e então a própria linha do marcador era
+ * colhida como último recurso — submetendo o texto do protocolo no lugar de um valor.
+ */
 function lastNonEmptyLine(text: string): string {
-  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== "" && !MARKER_LINE.test(line));
   return lines.length > 0 ? lines[lines.length - 1] : "";
 }
 

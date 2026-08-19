@@ -120,3 +120,21 @@ describe("normalizacao compartilhada com a correcao", () => {
     }
   });
 });
+
+describe("marcador nunca vira resposta", () => {
+  it("nao submete a linha do rascunho quando ele diz unknown", () => {
+    assert.equal(extractFinalAnswer("WORKING ANSWER: unknown"), "");
+  });
+
+  it("nao submete a linha do marcador final vazio", () => {
+    assert.equal(extractFinalAnswer("Pesquisei bastante.\nFINAL ANSWER:"), "");
+  });
+
+  it("prefere conteudo real a linha de marcador", () => {
+    assert.equal(extractFinalAnswer("WORKING ANSWER: unknown\nLisbon"), "Lisbon");
+  });
+
+  it("continua extraindo o valor quando o marcador tem conteudo", () => {
+    assert.equal(extractFinalAnswer("WORKING ANSWER: unknown\nFINAL ANSWER: Porto"), "Porto");
+  });
+});
