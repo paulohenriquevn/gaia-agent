@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GAIA Final Agent</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fbfbfa; --panel: #fff; --fg: #1a1a1a; --muted: #6b6b6b;
+    --line: #e4e4e2; --accent: #ff9d00; --code: #f4f4f2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0e0e10; --panel:#161618; --fg:#ebebeb; --muted:#9b9b9b; --line:#2a2a2e; --code:#1d1d20; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 3rem 1.25rem 4rem; background: var(--bg); color: var(--fg);
+    font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 780px; margin: 0 auto; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+  h1 { font-size: 1.9rem; margin: 0 0 .4rem; letter-spacing: -.02em; }
+  h2 { font-size: 1.1rem; margin: 2.5rem 0 .75rem; letter-spacing: -.01em; }
+  .lede { color: var(--muted); margin: 0; font-size: 1.05rem; }
+  .tags { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1rem; }
+  .tag {
+    font-size: 12px; font-weight: 600; padding: .25rem .6rem; border-radius: 99px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--muted);
+  }
+  .tag.accent { border-color: var(--accent); color: var(--accent); }
+  p { margin: 0 0 1rem; }
+  a { color: inherit; text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--accent); }
+  .wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  td.tool { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13.5px; white-space: nowrap; }
+  pre {
+    background: var(--code); border: 1px solid var(--line); border-radius: 8px;
+    padding: .9rem 1rem; overflow-x: auto; font-size: 13.5px; line-height: 1.5;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin: 0 0 1rem;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .92em; }
+  .note {
+    background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: 6px; padding: 1rem 1.1rem; margin: 1.25rem 0;
+  }
+  .note p:last-child { margin-bottom: 0; }
+  footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>GAIA Final Agent</h1>
+    <p class="lede">
+      Agente do desafio final (Unit 4) do Hugging Face Agents Course, construído com
+      <code>@theokit/sdk</code> em TypeScript.
+    </p>
+    <div class="tags">
+      <span class="tag accent">TypeScript</span>
+      <span class="tag">@theokit/sdk</span>
+      <span class="tag">OpenRouter</span>
+      <span class="tag">GAIA nível 1</span>
+      <span class="tag">MIT</span>
+    </div>
+  </header>
+
+  <p>
+    Responde às 20 questões de nível 1 do GAIA servidas pela
+    <a href="https://agents-course-unit4-scoring.hf.space/docs">API de avaliação do curso</a>
+    e submete o resultado para pontuação. O gate do certificado é 30% — 6 de 20 respostas corretas.
+  </p>
+
+  <p>
+    O código completo está na aba <strong>Files</strong> deste Space.
+  </p>
+
+  <h2>Como funciona</h2>
+  <p>
+    Cada questão roda num agente próprio e descartável, com um conjunto fixo de ferramentas.
+    Contexto de uma questão nunca contamina a seguinte.
+  </p>
+
+  <div class="wrap">
+    <table>
+      <thead><tr><th>Ferramenta</th><th>Para que serve</th></tr></thead>
+      <tbody>
+        <tr><td class="tool">web_search</td><td>Descobre quais páginas ler (DuckDuckGo, sem API key)</td></tr>
+        <tr><td class="tool">fetch_page</td><td>Lê uma página como texto, preservando tabelas em formato pipe</td></tr>
+        <tr><td class="tool">read_task_file</td><td>Decodifica anexos de texto e código; planilhas <code>xlsx</code> viram CSV</td></tr>
+        <tr><td class="tool">describe_image</td><td>Responde perguntas sobre imagens anexadas</td></tr>
+        <tr><td class="tool">transcribe_audio</td><td>Responde perguntas sobre áudio anexado</td></tr>
+        <tr><td class="tool">youtube_transcript</td><td>Legendas com marcação de tempo, para o que é <em>dito</em> num vídeo</td></tr>
+        <tr><td class="tool">run_python</td><td>Aritmética, contagem e execução do código anexado, com timeout rígido</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Formato da resposta</h2>
+  <p>
+    A pontuação é por igualdade exata de string, então o formato pesa tanto quanto a pesquisa.
+    O agente termina com <code>FINAL ANSWER: &lt;x&gt;</code>; o módulo
+    <code>src/lib/answer.ts</code> extrai o valor e remove o marcador, que o curso proíbe
+    no texto submetido.
+  </p>
+
+  <h2>Onde o agente executa</h2>
+  <div class="note">
+    <p>
+      Este Space usa o SDK <code>static</code>: publica o código e esta página. O agente
+      <strong>executa localmente</strong>, porque Spaces com SDK Docker — necessários para
+      rodar Node.js — exigem plano pago na conta que hospeda o projeto.
+    </p>
+    <p>
+      O <code>Dockerfile</code> e o servidor web (<code>src/server.ts</code>) estão versionados
+      e funcionais. Numa conta com Docker liberado, trocar <code>sdk: static</code> por
+      <code>sdk: docker</code> mais <code>app_port: 7860</code> no cabeçalho do README faz o
+      agente rodar dentro do próprio Space, sem outra alteração.
+    </p>
+  </div>
+
+  <h2>Rodando</h2>
+<pre>git clone https://huggingface.co/spaces/paulohenriquevn/gaia-final-agent
+cd gaia-final-agent
+npm install
+
+echo "OPENROUTER_API_KEY=sk-or-v1-..." &gt; .env
+
+npm test        # testes da lógica pura, sem rede
+npm run eval    # responde as 20 questões, grava answers.json
+npm run submit  # submete o answers.json já gerado</pre>
+  <p>
+    <code>eval</code> e <code>submit</code> são passos separados de propósito: cada submissão
+    aparece no leaderboard público do curso.
+  </p>
+
+  <footer>
+    Hugging Face Agents Course ·
+    <a href="https://huggingface.co/learn/agents-course">curso</a> ·
+    <a href="https://huggingface.co/spaces/agents-course/Students_leaderboard">leaderboard</a> ·
+    MIT
+  </footer>
+</main>
+</body>
+</html>

@@ -3,8 +3,7 @@ title: GAIA Final Agent
 emoji: 🧠
 colorFrom: yellow
 colorTo: red
-sdk: docker
-app_port: 7860
+sdk: static
 pinned: false
 license: mit
 ---
@@ -43,9 +42,13 @@ A pontuação é por **igualdade exata de string**, então o formato da resposta
 | `AGENT_CODE_URL` | só fora do Space | derivada de `SPACE_ID` |
 | `CONCURRENCY` | não | `3` |
 
-No Hugging Face Space, defina `OPENROUTER_API_KEY` em **Settings → Secrets** (nunca no código).
+Dentro de um Space em execução, `HF_USERNAME` e `AGENT_CODE_URL` são derivadas de `SPACE_ID`. Rodando localmente, defina as duas no `.env`.
 
-`HF_USERNAME` e `AGENT_CODE_URL` não precisam ser configuradas no Space: o Hugging Face injeta `SPACE_ID` (formato `usuario/nome-do-space`) e o agente deriva as duas dali — o link do código sai como `https://huggingface.co/spaces/<usuario>/<space>/tree/main`, que é o formato que a API de avaliação exige. Fora do Space (rodando `npm run submit` na sua máquina), defina as duas explicitamente.
+## Onde o agente executa
+
+Este Space usa o SDK `static`: ele publica o código e uma página de apresentação. O agente **executa localmente**, porque Spaces com SDK Docker — necessários para rodar Node.js — exigem plano pago na conta que hospeda este projeto.
+
+O `Dockerfile` e o servidor web (`src/server.ts`) estão versionados e funcionais: em uma conta com Docker liberado, trocar `sdk: static` por `sdk: docker` mais `app_port: 7860` no cabeçalho deste README faz o agente rodar dentro do próprio Space, sem outra alteração.
 
 ## Uso local
 
