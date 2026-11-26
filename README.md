@@ -1,149 +1,116 @@
----
-title: HF Agents Course — Unit 4 Final Assignment
-emoji: 🧠
-colorFrom: yellow
-colorTo: red
-sdk: static
-pinned: false
-license: mit
----
+# gaia-agent
 
-# Unit 4 — Final Assignment
+An agent that answers the GAIA questions of the final assignment of the [Hugging Face Agents Course](https://huggingface.co/learn/agents-course), written in TypeScript with the [TheoKit SDK](https://github.com/usetheokit/theokit-sdk).
 
-Agente do desafio final do [Hugging Face Agents Course](https://huggingface.co/learn/agents-course), construído em TypeScript com o [TheoKit SDK](https://theokit.dev).
+**Result: 55% on GAIA level 1.** That is 11 of 20 questions, against a pass mark of 30%.
 
-**Resultado: 55% no GAIA nível 1** — 11 de 20 questões, contra uma nota de corte de 30%.
+The number matters less than whether it can be defended. This README says how the agent was built, what went wrong on the way and why a run with a higher score was thrown away.
 
-> O que este repositório tenta mostrar não é o número, e sim que ele é **defensável**: como o agente foi construído, o que deu errado no caminho e por que uma rodada com score maior foi descartada.
-
----
-
-## Começando
+## Getting started
 
 ```bash
-git clone https://huggingface.co/spaces/paulohenriquevn/hf-agents-course-unit4-final
-cd hf-agents-course-unit4-final
+git clone https://github.com/paulohenriquevn/gaia-agent
+cd gaia-agent
 npm install
 
 echo "OPENROUTER_API_KEY=sk-or-v1-..." > .env
 
-npm test          # 125 testes, sem rede
-npm run smoke     # responde UMA questão, para conferir a configuração
-npm run eval      # responde as 20 e grava answers.json
-npm run submit    # envia o answers.json para a API do curso
+npm test          # 125 tests, no network
+npm run smoke     # answers ONE question, to check the configuration
+npm run eval      # answers all 20 and writes answers.json
+npm run submit    # sends answers.json to the course API
 ```
 
-Precisa de **Node 22.12+**. Uma chave do [OpenRouter](https://openrouter.ai) é o único requisito obrigatório.
+Needs Node 22.12 or newer. An [OpenRouter](https://openrouter.ai) key is the only mandatory requirement.
 
----
+## How the agent works
 
-## Como o agente funciona
+Each question runs in its own disposable agent. Nothing from one question leaks into the next.
 
-Cada questão roda num agente próprio e descartável. Nada de uma questão vaza para a seguinte.
-
-Quando a pesquisa não conclui, a resposta não é abandonada — há uma cadeia de três tentativas, porque uma questão em branco vale exatamente zero:
+When the research does not conclude, the answer is not abandoned. There is a chain of three attempts, because a blank answer is worth exactly zero:
 
 ```
-1. pesquisa com ferramentas   →  resposta verificada contra fontes
-2. mesmo modelo, sem tools    →  alguns modelos só concluem quando não podem pesquisar
-3. modelo de outra família    →  contorna filtro de conteúdo e limitação do primeiro
+1. research with tools        ->  answer checked against sources
+2. same model, no tools       ->  some models only conclude when they cannot search
+3. model from another family  ->  gets around the first model's content filter and limits
 ```
 
-### As ferramentas
+### Tools
 
-| Ferramenta | Para que serve |
+| Tool | What it is for |
 |---|---|
-| `wikipedia_search` · `wikipedia_page` | Fonte principal — API oficial, não bloqueia por volume |
-| `web_search` | Descobre o que ler (Brave com `BRAVE_API_KEY`, senão DuckDuckGo) |
-| `fetch_page` | Lê uma página como texto, preservando tabelas |
-| `read_task_file` | Anexos de texto e código; planilhas viram CSV |
-| `describe_image` | Perguntas sobre imagens anexadas |
-| `transcribe_audio` | Perguntas sobre áudio anexado |
-| `youtube_transcript` | Legendas com marcação de tempo |
-| `run_python` | Contas, contagens e código do enunciado, em subprocesso isolado |
+| `wikipedia_search`, `wikipedia_page` | Main source. Official API, which does not block by volume |
+| `web_search` | Finds what to read (Brave with `BRAVE_API_KEY`, otherwise DuckDuckGo) |
+| `fetch_page` | Reads a page as text and keeps the tables |
+| `read_task_file` | Text and code attachments; spreadsheets become CSV |
+| `describe_image` | Questions about attached images |
+| `transcribe_audio` | Questions about attached audio |
+| `youtube_transcript` | Captions with timestamps |
+| `run_python` | Arithmetic, counting and code from the question, in an isolated subprocess |
 
-A nota é por **igualdade exata de string**, então o formato pesa tanto quanto a pesquisa. O agente termina com `FINAL ANSWER: <valor>` e `src/lib/answer.ts` extrai só o valor — o curso proíbe esse marcador no texto submetido.
+Grading is by exact string equality, so the format weighs as much as the research. The agent ends with `FINAL ANSWER: <value>` and `src/lib/answer.ts` extracts only the value, because the course forbids that marker in the submitted text.
 
----
+## Configuration
 
-## Configuração
-
-| Variável | Obrigatória | Padrão |
+| Variable | Required | Default |
 |---|---|---|
-| `OPENROUTER_API_KEY` | **sim** | — |
-| `MODEL_ID` | não | `openrouter/google/gemini-3-flash-preview` |
-| `FALLBACK_MODEL_ID` | não | `openrouter/qwen/qwen3-max` |
-| `VISION_MODEL` · `AUDIO_MODEL` | não | `google/gemini-2.5-flash` |
-| `BRAVE_API_KEY` | não | sem ela, a busca cai para o DuckDuckGo |
-| `MAX_ITERATIONS` | não | `30` |
-| `CONCURRENCY` | não | `3` |
-| `BUDGET_LIMIT_USD` | não | `5` por hora |
-| `HF_USERNAME` · `AGENT_CODE_URL` | só para submeter | derivadas de `SPACE_ID` no Space |
-| `RUN_TOKEN` | só para `/run` | sem ela o servidor sobe somente-leitura |
+| `OPENROUTER_API_KEY` | **yes** | none |
+| `MODEL_ID` | no | `openrouter/google/gemini-3-flash-preview` |
+| `FALLBACK_MODEL_ID` | no | `openrouter/qwen/qwen3-max` |
+| `VISION_MODEL`, `AUDIO_MODEL` | no | `google/gemini-2.5-flash` |
+| `BRAVE_API_KEY` | no | without it, search falls back to DuckDuckGo |
+| `MAX_ITERATIONS` | no | `30` |
+| `CONCURRENCY` | no | `3` |
+| `BUDGET_LIMIT_USD` | no | `5` per hour |
+| `HF_USERNAME`, `AGENT_CODE_URL` | only to submit | derived from `SPACE_ID` inside the Space |
+| `RUN_TOKEN` | only for `/run` | without it the server starts read-only |
 
-Uma rodada completa custa cerca de **US$ 1** com o modelo padrão.
+A full run costs about US$ 1 with the default model.
 
----
-
-## Medindo antes de submeter
+## Measuring before submitting
 
 ```bash
-GROUND_TRUTH_PATH=<gabarito.jsonl> npm run score
+GROUND_TRUTH_PATH=<answer-key.jsonl> npm run score
 ```
 
-Corrige as respostas localmente e imprime o percentual. Cada submissão aparece no leaderboard público do curso, então descobrir o score só depois de publicá-lo sai caro.
+This grades the answers locally and prints the percentage. Every submission shows up on the course's public leaderboard, so finding out the score only after publishing it is expensive.
 
-O gabarito **não** é versionado nem lido pelo agente: entra por variável de ambiente, depois que as respostas já foram geradas.
+The answer key is neither versioned nor read by the agent. It comes in through an environment variable, after the answers have been generated.
 
----
+## What this project learned by getting it wrong
 
-## O que este projeto aprendeu errando
+**An earlier run scored higher and was thrown away.** The agent reached the benchmark's answer key through the `shell` tool, which the runtime registers on every agent by default, with the reference file inside the working directory. The proof: the chess image question answered `Rd5` (correct) and started answering `Rh1+` (wrong) as soon as the access was blocked. The published score is lower and holds up.
 
-Vale mais que o score:
+**The prompt gave an answer away.** A formatting example used, without anyone noticing, the answer to one of the questions, and it was served to the model on every question. Today `src/prompts.ts` carries the rule that no example may match an answer from the evaluated set.
 
-**Uma rodada anterior pontuou mais — e foi descartada.** O agente alcançava o gabarito do benchmark através da ferramenta `shell`, que o runtime registra em todo agente por padrão, com o arquivo de referência dentro do diretório de trabalho. A prova: a questão da imagem de xadrez respondia `Rd5` (correto) e passou a responder `Rh1+` (errado) assim que o acesso foi bloqueado. O score publicado é menor e sustentável.
+**The default iteration cap was the bottleneck.** The runtime truncates at 8 tool rounds. A GAIA question spends that just locating the source, and the run ended with no text and no readable error.
 
-**O prompt entregava a resposta.** Um exemplo de formatação usava, sem que ninguém notasse, o gabarito de uma das questões — servido ao modelo em toda pergunta. Hoje `src/prompts.ts` carrega a regra de que nenhum exemplo pode coincidir com resposta do conjunto avaliado.
+**Four questions cannot be answered.** The course API route `GET /files/{task_id}` returns 404 for every attachment, so image, audio, spreadsheet and code are out of reach. The real ceiling is 16, not 20.
 
-**O teto padrão de iterações era o gargalo.** O runtime trunca em 8 rodadas de ferramenta; uma questão do GAIA gasta isso só localizando a fonte, e o run terminava sem texto e sem erro legível.
+## Security
 
-**Quatro questões são irrespondíveis.** A rota `GET /files/{task_id}` da API do curso devolve 404 para todos os anexos, então imagem, áudio, planilha e código ficam fora de alcance. O teto real é 16, não 20.
+The Python code the agent runs is written by the model from pages read on the web, which is untrusted input. It runs in a subprocess with a minimal environment (without the process's credentials), an output cap and a deadline that kills the process group.
 
----
+URLs chosen by the model go through SSRF screening, which refuses private, loopback and link-local addresses. Unrestricted tools (`shell`, `memory_search`, `memory_get`) are denied by policy.
 
-## Segurança
+`/run` requires `RUN_TOKEN`: the route spends credit and publishes to the leaderboard, so it is disabled by default.
 
-O código Python que o agente executa é escrito pelo modelo a partir de páginas lidas na web — entrada não confiável. Ele roda em subprocesso com ambiente mínimo (sem as credenciais do processo), teto de saída e prazo que encerra o grupo de processos.
+## Built with
 
-URLs escolhidas pelo modelo passam por triagem de SSRF, recusando endereços privados, de loopback e link-local. Ferramentas de acesso irrestrito (`shell`, `memory_search`, `memory_get`) são negadas por política.
+**[TheoKit SDK](https://github.com/usetheokit/theokit-sdk)**, a TypeScript SDK and agent runtime with 43 LLM providers on your own keys, MCP, subagents, workflows and an execution sandbox.
 
-`/run` exige `RUN_TOKEN`: a rota gasta crédito e publica no leaderboard, então fica desabilitada por omissão.
+From the SDK this project uses `Agent.create` with its own tools, `Tool.create` with Zod schemas, `PermissionPlugin` to deny tools, `Retry.create` with jitter, `Budget` as a spending cap, and the ready-made tools of [`@theokit/sdk-tools`](https://www.npmjs.com/package/@theokit/sdk-tools): provider-agnostic search and fetch with SSRF screening.
 
----
+Building this agent also produced two upstream reports: [theokit-sdk#338](https://github.com/usetheokit/theokit-sdk/issues/338) and [theokit-skill#1](https://github.com/usetheokit/theokit-skill/issues/1).
 
-## Construído com
+## Where the agent runs
 
-**[TheoKit SDK](https://theokit.dev)** — SDK TypeScript e runtime de agentes, com 43 provedores de LLM nas suas próprias chaves, MCP, subagentes, workflows e sandbox de execução.
+The agent runs locally. The code is also published as a [Hugging Face Space](https://huggingface.co/spaces/paulohenriquevn/hf-agents-course-unit4-final), which is `static` because Spaces with Docker, needed for Node.js, require a paid plan.
 
-- Site: **[theokit.dev](https://theokit.dev)**
-- Código: **[github.com/usetheokit/theokit-sdk](https://github.com/usetheokit/theokit-sdk)**
+The `Dockerfile` and the server (`src/server.ts`) are versioned and working. On an account with Docker enabled, a Space with `sdk: docker` and `app_port: 7860` runs the agent inside the Space.
 
-Deste SDK o projeto usa `Agent.create` com ferramentas próprias, `Tool.create` com schemas Zod, `PermissionPlugin` para negar ferramentas, `Retry.create` com jitter, `Budget` como teto de gasto, e as ferramentas prontas de [`@theokit/sdk-tools`](https://www.npmjs.com/package/@theokit/sdk-tools) — busca agnóstica de provedor e fetch com triagem de SSRF.
+## License
 
-Construir este agente também gerou dois relatórios upstream: [theokit-sdk#338](https://github.com/usetheokit/theokit-sdk/issues/338) e [theokit-skill#1](https://github.com/usetheokit/theokit-skill/issues/1).
+MIT. See [LICENSE](LICENSE). Third-party attributions are in [NOTICE](NOTICE).
 
----
-
-## Onde o agente executa
-
-Este Space é `static`: publica o código e esta página. O agente **roda localmente**, porque Spaces com Docker — necessários para Node.js — exigem plano pago.
-
-O `Dockerfile` e o servidor (`src/server.ts`) estão versionados e funcionais: numa conta com Docker liberado, trocar `sdk: static` por `sdk: docker` mais `app_port: 7860` no cabeçalho deste arquivo faz o agente rodar dentro do próprio Space.
-
----
-
-## Licença
-
-MIT — ver [LICENSE](LICENSE). Atribuições de terceiros em [NOTICE](NOTICE).
-
-As perguntas vêm do [benchmark GAIA](https://huggingface.co/datasets/gaia-benchmark/GAIA) e pertencem aos seus autores. Nenhum gabarito é redistribuído aqui.
+The questions come from the [GAIA benchmark](https://huggingface.co/datasets/gaia-benchmark/GAIA) and belong to its authors. No answer key is redistributed here.

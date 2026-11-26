@@ -1,35 +1,34 @@
-# Atribuições
+# Attributions
 
-Este projeto é licenciado sob a MIT (ver LICENSE). As atribuições abaixo cobrem
-material de terceiros consultado ou incorporado durante o desenvolvimento.
+This project is licensed under MIT (see LICENSE). The attributions below cover
+third-party material consulted or incorporated during development.
 
-## Benchmark GAIA
+## GAIA benchmark
 
-As perguntas respondidas por este agente vêm do benchmark GAIA, servidas pela API de
-avaliação do Hugging Face Agents Course. O dataset e seu gabarito pertencem aos autores
-do GAIA e NÃO são redistribuídos aqui: nenhum arquivo de gabarito é versionado, e o
-benchmark local (`npm run score`) lê o gabarito de um caminho externo informado em
+The questions this agent answers come from the GAIA benchmark, served by the evaluation
+API of the Hugging Face Agents Course. The dataset and its answer key belong to the GAIA
+authors and are NOT redistributed here: no answer key file is versioned, and the local
+benchmark (`npm run score`) reads the answer key from an external path given in
 `GROUND_TRUTH_PATH`.
 
 Mialon et al. "GAIA: a benchmark for General AI Assistants" (2023).
 https://huggingface.co/datasets/gaia-benchmark/GAIA
 
-## Referências consultadas
+## References consulted
 
-- Space `ZeroTimo/RobotPai` (@47d9afe) — agente LangGraph em Python, clonado localmente
-  como material de referência durante o desenvolvimento. Nenhum código, texto ou dado
-  seu foi incorporado a este projeto. O Space não declara licença.
-- Template de Space do Hugging Face — origem do `.gitattributes` e do esqueleto inicial
-  do repositório. https://huggingface.co/docs/hub/spaces
+- Space `ZeroTimo/RobotPai` (@47d9afe): a LangGraph agent in Python, cloned locally as
+  reference material during development. No code, text or data from it was incorporated
+  into this project. The Space declares no license.
+- Hugging Face Space template: origin of `.gitattributes` and of the initial skeleton of
+  the repository. https://huggingface.co/docs/hub/spaces
 
-## Conteúdo obtido em tempo de execução
+## Content fetched at run time
 
-O agente lê páginas da Wikipédia em tempo de execução. Esse conteúdo é licenciado sob
-CC BY-SA 4.0 pelos seus autores e não é redistribuído por este repositório: nenhuma
-saída de execução é versionada.
+The agent reads Wikipedia pages at run time. That content is licensed under CC BY-SA 4.0
+by its authors and is not redistributed by this repository: no run output is versioned.
 
-## Dependências
+## Dependencies
 
-Todas as dependências diretas e transitivas são MIT, ISC, BSD-2-Clause ou Apache-2.0.
-Nenhuma é copyleft. O pacote `xlsx` (SheetJS, Apache-2.0) é instalado a partir de
-`cdn.sheetjs.com` com hash de integridade fixado no lockfile.
+All direct and transitive dependencies are MIT, ISC, BSD-2-Clause or Apache-2.0. None is
+copyleft. The `xlsx` package (SheetJS, Apache-2.0) is installed from `cdn.sheetjs.com`
+with an integrity hash pinned in the lockfile.
