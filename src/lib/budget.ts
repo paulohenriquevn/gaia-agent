@@ -1,4 +1,4 @@
-import { Budget } from "@theokit/sdk";
+import { Budget } from "@getloopscale/loopzero-sdk";
 
 /**
  * Teto de gasto da rodada.

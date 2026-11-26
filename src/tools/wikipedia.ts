@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Tool } from "@theokit/sdk";
+import { Tool } from "@getloopscale/loopzero-sdk";
 import { htmlToText, truncate } from "./support/html-text.ts";
 import { withRetry } from "./support/retry.ts";
 import { request } from "../lib/http.ts";

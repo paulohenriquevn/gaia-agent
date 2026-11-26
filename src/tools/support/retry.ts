@@ -1,4 +1,4 @@
-import { Retry } from "@theokit/sdk/retry";
+import { Retry } from "@getloopscale/loopzero-sdk/retry";
 
 /**
  * Repetição com backoff.

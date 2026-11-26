@@ -4,8 +4,11 @@ Formato: [Keep a Changelog](https://keepachangelog.com/) · [Semantic Versioning
 
 ## [Unreleased]
 
+### Changed
+- The agent now runs on `@getloopscale/loopzero-sdk` and `@getloopscale/loopzero-sdk-tools` 0.1.0. The runtime state directory is `.loopzero/`, and the SDK reads `LOOPZERO_API_KEY` where it used to read its previous variable. The 55% score was measured before this change and has not been measured again. (#3)
+
 ### Added
-- Agente para o desafio final (Unit 4) do Agents Course, construído com `@theokit/sdk`
+- Agente para o desafio final (Unit 4) do Agents Course, construído com `@getloopscale/loopzero-sdk`
 - Ferramentas de pesquisa: busca na web e leitura de páginas com tabelas preservadas
 - Ferramentas de anexo: leitura de planilhas e código, descrição de imagens e transcrição de áudio
 - Ferramenta de execução de Python com timeout rígido, para cálculos e código do benchmark
@@ -30,7 +33,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/) · [Semantic Versioning
 - Causa real do erro do provider agora é capturada do evento de status; antes a
 - Teto de iterações por questão configurável (`MAX_ITERATIONS`, padrão 30); o padrão do
 - Verificação de disponibilidade das fontes no início da rodada: ferramenta de fonte
-- `web_search` passa a ser a ferramenta de `@theokit/sdk-tools`, com backend injetado
+- `web_search` passa a ser a ferramenta de `@getloopscale/loopzero-sdk-tools`, com backend injetado
 - Ferramenta que lançava exceção derrubava o run inteiro após poucas falhas; agora toda
 - Runs truncados no teto de iterações são sinalizados em vez de virarem resposta vazia
 - Segredos do processo deixam de ser expostos ao código Python executado pelo agente,

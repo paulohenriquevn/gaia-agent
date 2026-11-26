@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { Tool } from "@theokit/sdk";
-import { createWebSearchTool, type WebSearchCallback } from "@theokit/sdk-tools";
+import { Tool } from "@getloopscale/loopzero-sdk";
+import { createWebSearchTool, type WebSearchCallback } from "@getloopscale/loopzero-sdk-tools";
 import { resilient } from "./support/resilient-tool.ts";
 import * as cheerio from "cheerio";
 import { htmlToText, truncate } from "./support/html-text.ts";
@@ -142,7 +142,7 @@ export async function fetchPageText(url: string, maxChars: number): Promise<stri
 }
 
 /**
- * `web_search` vem de `@theokit/sdk-tools`: a ferramenta é agnóstica de provedor e
+ * `web_search` vem de `@getloopscale/loopzero-sdk-tools`: a ferramenta é agnóstica de provedor e
  * devolve `{ ok: false, error }` quando o backend falha, em vez de lançar e derrubar
  * o run. O backend entra por injeção — ver `search-backend.ts`.
  */

@@ -1,4 +1,4 @@
-import { screenedFetch } from "@theokit/sdk-tools";
+import { screenedFetch } from "@getloopscale/loopzero-sdk-tools";
 
 /**
  * Fronteira HTTP do projeto.
@@ -14,7 +14,7 @@ import { screenedFetch } from "@theokit/sdk-tools";
  *    metadados da nuvem (`169.254.169.254`) e receber a resposta de volta — provado com
  *    PoC contra um servidor local.
  *
- * A triagem vem de `@theokit/sdk-tools`, que já resolve o host, recusa endereços
+ * A triagem vem de `@getloopscale/loopzero-sdk-tools`, que já resolve o host, recusa endereços
  * privados, de loopback e link-local, e reavalia cada redirecionamento.
  */
 

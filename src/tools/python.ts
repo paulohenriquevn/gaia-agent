@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { z } from "zod";
-import { Tool } from "@theokit/sdk";
+import { Tool } from "@getloopscale/loopzero-sdk";
 import { truncate } from "./support/html-text.ts";
 import { resilient } from "./support/resilient-tool.ts";
 

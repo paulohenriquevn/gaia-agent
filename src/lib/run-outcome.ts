@@ -1,4 +1,4 @@
-import type { Run, RunResult, SDKMessage } from "@theokit/sdk";
+import type { Run, RunResult, SDKMessage } from "@getloopscale/loopzero-sdk";
 
 /**
  * Leitura do stream de um run.
