@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Tool } from "@theokit/sdk";
+import { Tool } from "@getloopscale/loopzero-sdk";
 import * as XLSX from "xlsx";
 import type { TaskFileSource } from "../scoring-api.ts";
 import { truncate } from "./support/html-text.ts";

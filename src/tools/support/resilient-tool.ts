@@ -7,7 +7,7 @@
  *
  * Isto não é engolir erro. A falha continua explícita — só é entregue a quem pode
  * tratá-la, que aqui é o próprio agente: ele lê o motivo, escolhe outra ferramenta e
- * segue. É o mesmo contrato das ferramentas de `@theokit/sdk-tools`, que devolvem
+ * segue. É o mesmo contrato das ferramentas de `@getloopscale/loopzero-sdk-tools`, que devolvem
  * `{ ok: false, error }` em vez de lançar.
  */
 

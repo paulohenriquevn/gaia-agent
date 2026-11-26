@@ -18,8 +18,8 @@
     "score": "node --env-file-if-exists=.env --experimental-strip-types src/cli/score.ts"
   },
   "dependencies": {
-    "@theokit/sdk": "^4.53.1",
-    "@theokit/sdk-tools": "^0.27.0",
+    "@getloopscale/loopzero-sdk": "^0.1.0",
+    "@getloopscale/loopzero-sdk-tools": "^0.1.0",
     "cheerio": "^1.0.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "youtube-transcript": "^1.2.1",

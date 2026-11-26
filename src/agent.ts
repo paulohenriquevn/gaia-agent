@@ -1,5 +1,5 @@
-import { Agent, type CustomTool } from "@theokit/sdk";
-import type { WebSearchCallback } from "@theokit/sdk-tools";
+import { Agent, type CustomTool } from "@getloopscale/loopzero-sdk";
+import type { WebSearchCallback } from "@getloopscale/loopzero-sdk-tools";
 import { DIRECT_ANSWER_PROMPT, SYSTEM_PROMPT } from "./prompts.ts";
 import { buildTools } from "./tools/registry.ts";
 import { createToolPermissionPlugin } from "./lib/tool-permissions.ts";
@@ -85,9 +85,9 @@ export function answerQuestion(
 
 /** Cria o agente de uma tentativa. Isolado para que a conversa não carregue a montagem. */
 async function createQuestionAgent(config: AgentConfig, modelId: string, tools: CustomTool[]) {
-  // O SDK resolve `apiKey` deste campo ou de THEOKIT_API_KEY — nunca das provider keys.
-  // Passar a chave do OpenRouter aqui é o que dispensa a THEOKIT_API_KEY: com
-  // OPENROUTER_API_KEY no ambiente o SDK escolhe o runtime local, que fala com o provider.
+  // The SDK resolves `apiKey` from this field or from LOOPZERO_API_KEY, never from the
+  // provider keys. Passing the OpenRouter key here is what makes LOOPZERO_API_KEY unnecessary: with
+  // OPENROUTER_API_KEY in the environment the SDK picks the local runtime, which talks to the provider.
   return Agent.create({
     apiKey: config.openRouterApiKey,
     model: { id: modelId },

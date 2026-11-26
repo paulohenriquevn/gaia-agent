@@ -6,7 +6,7 @@ answers.json
 !.env.example
 modelo/
 answers*.json
-.theokit/
+.loopzero/
 eval*.log
 smoke*.log
 diag*.log

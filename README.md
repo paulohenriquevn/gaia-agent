@@ -1,6 +1,6 @@
 # gaia-agent
 
-An agent that answers the GAIA questions of the final assignment of the [Hugging Face Agents Course](https://huggingface.co/learn/agents-course), written in TypeScript with the [TheoKit SDK](https://github.com/usetheokit/theokit-sdk).
+An agent that answers the GAIA questions of the final assignment of the [Hugging Face Agents Course](https://huggingface.co/learn/agents-course), written in TypeScript with the [LoopZero SDK](https://www.npmjs.com/package/@getloopscale/loopzero-sdk).
 
 **Result: 55% on GAIA level 1.** That is 11 of 20 questions, against a pass mark of 30%.
 
@@ -97,11 +97,11 @@ URLs chosen by the model go through SSRF screening, which refuses private, loopb
 
 ## Built with
 
-**[TheoKit SDK](https://github.com/usetheokit/theokit-sdk)**, a TypeScript SDK and agent runtime with 43 LLM providers on your own keys, MCP, subagents, workflows and an execution sandbox.
+**[LoopZero SDK](https://www.npmjs.com/package/@getloopscale/loopzero-sdk)**, a TypeScript SDK and agent runtime with 43 LLM providers on your own keys, MCP, subagents, workflows and an execution sandbox.
 
-From the SDK this project uses `Agent.create` with its own tools, `Tool.create` with Zod schemas, `PermissionPlugin` to deny tools, `Retry.create` with jitter, `Budget` as a spending cap, and the ready-made tools of [`@theokit/sdk-tools`](https://www.npmjs.com/package/@theokit/sdk-tools): provider-agnostic search and fetch with SSRF screening.
+From the SDK this project uses `Agent.create` with its own tools, `Tool.create` with Zod schemas, `PermissionPlugin` to deny tools, `Retry.create` with jitter, `Budget` as a spending cap, and the ready-made tools of [`@getloopscale/loopzero-sdk-tools`](https://www.npmjs.com/package/@getloopscale/loopzero-sdk-tools): provider-agnostic search and fetch with SSRF screening.
 
-Building this agent also produced two upstream reports: [theokit-sdk#338](https://github.com/usetheokit/theokit-sdk/issues/338) and [theokit-skill#1](https://github.com/usetheokit/theokit-skill/issues/1).
+The 55% was measured on an earlier version of the SDK. It has not been measured again since the move to `@getloopscale/loopzero-sdk` 0.1.0.
 
 ## Where the agent runs
 

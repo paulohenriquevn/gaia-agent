@@ -1,4 +1,4 @@
-import { createBraveWebSearchAdapter, type WebSearchCallback } from "@theokit/sdk-tools";
+import { createBraveWebSearchAdapter, type WebSearchCallback } from "@getloopscale/loopzero-sdk-tools";
 import { searchWeb } from "./web.ts";
 import { searchLimiter } from "../lib/rate-limiter.ts";
 
