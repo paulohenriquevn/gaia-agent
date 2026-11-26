@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Tool } from "@theokit/sdk";
+import { Tool } from "@getloopscale/loopzero-sdk";
 import type { TaskFileSource } from "../scoring-api.ts";
 import { analyzeAudio, describeImage } from "./support/openrouter.ts";
 import { extensionOf } from "./task-files.ts";

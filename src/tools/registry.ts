@@ -1,5 +1,5 @@
-import type { CustomTool } from "@theokit/sdk";
-import { createWebFetchTool } from "@theokit/sdk-tools";
+import type { CustomTool } from "@getloopscale/loopzero-sdk";
+import { createWebFetchTool } from "@getloopscale/loopzero-sdk-tools";
 import type { TaskFileSource } from "../scoring-api.ts";
 import type { SourceHealth } from "../lib/health.ts";
 import { createSearchTool, fetchPageTool } from "./web.ts";
@@ -12,7 +12,7 @@ import {
   createTranscribeAudioTool,
   type PerceptionConfig,
 } from "./perception.ts";
-import type { WebSearchCallback } from "@theokit/sdk-tools";
+import type { WebSearchCallback } from "@getloopscale/loopzero-sdk-tools";
 
 /**
  * Monta o conjunto de ferramentas de uma execução.
@@ -32,7 +32,7 @@ export interface ToolRegistryOptions {
 }
 
 /**
- * Busca uma URL com proteção contra SSRF, vinda de `@theokit/sdk-tools`.
+ * Busca uma URL com proteção contra SSRF, vinda de `@getloopscale/loopzero-sdk-tools`.
  *
  * O agente escolhe a URL a partir de texto que ele mesmo leu da web, então ela é entrada
  * não confiável: sem screening, uma página pode dirigi-lo a `127.0.0.1` ou ao endpoint de

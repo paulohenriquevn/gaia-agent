@@ -1,6 +1,6 @@
 /**
  * Cliente mínimo do OpenRouter para as chamadas MULTIMODAIS (imagem e áudio).
- * O raciocínio principal do agente passa pelo runtime do @theokit/sdk; este cliente
+ * O raciocínio principal do agente passa pelo runtime do @getloopscale/loopzero-sdk; este cliente
  * existe só porque uma ferramenta precisa devolver texto, e imagem/áudio só viram
  * texto passando por um modelo perceptivo.
  */
